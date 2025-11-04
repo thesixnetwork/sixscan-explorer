@@ -254,7 +254,7 @@ export default {
 
       Promise.all([
         this.$http.getStakingPool(),
-        this.$http.getBankTotal(res.bond_denom)
+        this.$http.getBankTotal(res.params.bond_denom)
       ]).then(pool => {
         const bondedAndSupply = this.chain.items.findIndex(
           x => x.subtitle === 'bonded_and_supply'
