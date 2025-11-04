@@ -3,15 +3,32 @@
     <b-card class="customizer-border">
       <b-row>
         <!-- User Info: Left col -->
-        <b-col cols="21" xl="6" class="d-flex justify-content-between flex-column">
+        <b-col
+          cols="21"
+          xl="6"
+          class="d-flex justify-content-between flex-column"
+        >
           <!-- User Avatar & Action Buttons -->
           <div class="d-flex justify-content-start">
-            <b-avatar v-if="validator.description.details" :src="`https://i.imgur.com/${fetch_details(validator.description.details).im
-              }.png`
-              " alt="avatar" variant="link" class="customizer-icon" size="104px" rounded
-              :style="{ border: '1px solid rgba(198,198,198,0.5)' }" />
-            <b-avatar v-else alt="avatar" variant="link" class="customizer-icon" size="104px" rounded
-              :style="{ border: '1px solid rgba(198,198,198,0.5)' }" />
+            <b-avatar
+              v-if="validator.description.details"
+              :src="avatarUrl(validator.description.details)"
+              alt="avatar"
+              variant="link"
+              class="customizer-icon"
+              size="104px"
+              rounded
+              :style="{ border: '1px solid rgba(198,198,198,0.5)' }"
+            />
+            <b-avatar
+              v-else
+              alt="avatar"
+              variant="link"
+              class="customizer-icon"
+              size="104px"
+              rounded
+              :style="{ border: '1px solid rgba(198,198,198,0.5)' }"
+            />
             <div class="d-flex flex-column ml-1">
               <div class="mb-1">
                 <h4 class="mb-25 text-uppercase">
@@ -107,7 +124,11 @@
                 <span class="font-weight-bold">Website</span>
               </th>
               <td v-if="validator.description.website">
-                <a :href="validator.description.website" target="_blank" rel="nofollow">
+                <a
+                  :href="validator.description.website"
+                  target="_blank"
+                  rel="nofollow"
+                >
                   <span class="d-inline-block text-truncate customizer-url">
                     {{ validator.description.website }}
                   </span>
@@ -123,8 +144,13 @@
                 <span class="font-weight-bold">Facebook</span>
               </th>
               <td v-if="validator.description.security_contact">
-                <a :href="fetch_details(validator.description.security_contact).fb
-                  " target="_blank" rel="nofollow">
+                <a
+                  :href="
+                    fetch_details(validator.description.security_contact).fb
+                  "
+                  target="_blank"
+                  rel="nofollow"
+                >
                   <span class="d-inline-block text-truncate customizer-url">
                     {{
                       fetch_details(validator.description.security_contact)
@@ -149,40 +175,81 @@
           <staking-commission-component :data="validator.commission" />
         </b-col>
         <b-col lg="4" md="12">
-          <staking-reward-component :data="distribution" :validator="validator.operator_address"
-            :address="accountAddress" />
+          <staking-reward-component
+            :data="distribution"
+            :validator="validator.operator_address"
+            :address="accountAddress"
+          />
         </b-col>
         <b-col lg="4" md="12">
-          <staking-address-component :hex-address="hexAddress" :operator-address="validator.operator_address"
-            :consensus-pubkey="validator.consensus_pubkey" :account-address="accountAddress" />
+          <staking-address-component
+            :hex-address="hexAddress"
+            :operator-address="validator.operator_address"
+            :consensus-pubkey="validator.consensus_pubkey"
+            :account-address="accountAddress"
+          />
         </b-col>
       </b-row>
       <div class="groupContainer">
         <b-form-group class="mb-0">
-          <b-form-radio-group id="tab-table" v-model="selectedOption" button-variant="outline-primary"
-            :options="optionBlock" buttons name="btn-default" @change="validatorBlocks" />
+          <b-form-radio-group
+            id="tab-table"
+            v-model="selectedOption"
+            button-variant="outline-primary"
+            :options="optionBlock"
+            buttons
+            name="btn-default"
+            @change="validatorBlocks"
+          />
         </b-form-group>
         <div class="csvStyle">
-          <b-button v-if="selectedOption === 'account_tx'" variant="link" size="sm" class="customizer-button"
-            @click="csvExport(accountTxsCsv)">
+          <b-button
+            v-if="selectedOption === 'account_tx'"
+            variant="link"
+            size="sm"
+            class="customizer-button"
+            @click="csvExport(accountTxsCsv)"
+          >
             Account Txs to CSV
             <feather-icon icon="FileTextIcon" size="16" />
           </b-button>
-          <b-button v-else-if="selectedOption === 'validator_tx'" variant="link" size="sm" class="customizer-button"
-            @click="csvExport(validatorTxsCsv)">
+          <b-button
+            v-else-if="selectedOption === 'validator_tx'"
+            variant="link"
+            size="sm"
+            class="customizer-button"
+            @click="csvExport(validatorTxsCsv)"
+          >
             Validator Txs to CSV
             <feather-icon icon="FileTextIcon" size="16" />
           </b-button>
-          <b-button v-else variant="link" size="sm" class="customizer-button" @click="csvExport(blockCsv)">
+          <b-button
+            v-else
+            variant="link"
+            size="sm"
+            class="customizer-button"
+            @click="csvExport(blockCsv)"
+          >
             Propose to CSV
             <feather-icon icon="FileTextIcon" size="16" />
           </b-button>
         </div>
       </div>
-      <b-card v-if="selectedOption === 'account_tx'" no-body class="overflow-auto">
+      <b-card
+        v-if="selectedOption === 'account_tx'"
+        no-body
+        class="overflow-auto"
+      >
         <b-card-body class="pl-0 pr-0 pb-0">
-          <b-table :items="accountTxs" :busy="isBusy" striped hover responsive stacked="sm"
-            :style="{ fontSize: 'smaller' }">
+          <b-table
+            :items="accountTxs"
+            :busy="isBusy"
+            striped
+            hover
+            responsive
+            stacked="sm"
+            :style="{ fontSize: 'smaller' }"
+          >
             <template #table-busy>
               <div class="text-center text-secondary my-2">
                 <b-spinner class="align-middle mr-25" />
@@ -213,15 +280,32 @@
               </b-badge>
             </template>
           </b-table>
-          <b-pagination v-if="Number(account_txs.page_total) > 1" :total-rows="account_txs.total_count"
-            :per-page="account_txs.limit" :value="account_txs.page_number" align="center" class="mt-1"
-            @change="pageload" />
+          <b-pagination
+            v-if="Number(account_txs.page_total) > 1"
+            :total-rows="account_txs.total_count"
+            :per-page="account_txs.limit"
+            :value="account_txs.page_number"
+            align="center"
+            class="mt-1"
+            @change="pageload"
+          />
         </b-card-body>
       </b-card>
-      <b-card v-else-if="selectedOption === 'validator_tx'" no-body class="overflow-auto">
+      <b-card
+        v-else-if="selectedOption === 'validator_tx'"
+        no-body
+        class="overflow-auto"
+      >
         <b-card-body class="pl-0 pr-0 pb-0">
-          <b-table :items="validatorTxs" :busy="isBusy" striped hover responsive stacked="sm"
-            :style="{ fontSize: 'smaller' }">
+          <b-table
+            :items="validatorTxs"
+            :busy="isBusy"
+            striped
+            hover
+            responsive
+            stacked="sm"
+            :style="{ fontSize: 'smaller' }"
+          >
             <template #table-busy>
               <div class="text-center text-secondary my-2">
                 <b-spinner class="align-middle mr-25" />
@@ -252,15 +336,29 @@
               </b-badge>
             </template>
           </b-table>
-          <b-pagination v-if="Number(validator_txs.page_total) > 1" :total-rows="validator_txs.total_count"
-            :per-page="validator_txs.limit" :value="validator_txs.page_number" align="center" class="mt-1"
-            @change="pageload" />
+          <b-pagination
+            v-if="Number(validator_txs.page_total) > 1"
+            :total-rows="validator_txs.total_count"
+            :per-page="validator_txs.limit"
+            :value="validator_txs.page_number"
+            align="center"
+            class="mt-1"
+            @change="pageload"
+          />
         </b-card-body>
       </b-card>
       <b-card v-else no-body class="overflow-auto">
         <b-card-body class="pl-0 pr-0 pb-0">
-          <b-table :items="proposeTxs" :busy="isBusy" :fields="list_blocks" striped hover responsive stacked="sm"
-            :style="{ fontSize: 'smaller' }">
+          <b-table
+            :items="proposeTxs"
+            :busy="isBusy"
+            :fields="list_blocks"
+            striped
+            hover
+            responsive
+            stacked="sm"
+            :style="{ fontSize: 'smaller' }"
+          >
             <template #table-busy>
               <div class="text-center text-secondary my-2">
                 <b-spinner class="align-middle mr-25" />
@@ -291,13 +389,22 @@
               </b-badge>
             </template>
           </b-table>
-          <b-pagination v-if="Number(proposeTransactions.page_total) > 1" :total-rows="proposeTransactions.total_count"
-            :per-page="proposeTransactions.limit" :value="proposeTransactions.page_number" align="center" class="mt-1"
-            @change="pageload" />
+          <b-pagination
+            v-if="Number(proposeTransactions.page_total) > 1"
+            :total-rows="proposeTransactions.total_count"
+            :per-page="proposeTransactions.limit"
+            :value="proposeTransactions.page_number"
+            align="center"
+            class="mt-1"
+            @change="pageload"
+          />
         </b-card-body>
       </b-card>
     </template>
-    <operation-modal type="Delegate" :validator-address="validator.operator_address" />
+    <operation-modal
+      type="Delegate"
+      :validator-address="validator.operator_address"
+    />
     <div id="txevent" />
   </div>
 </template>
@@ -428,26 +535,26 @@ export default {
           value:
             typeof x.decode_tx.amount !== 'undefined'
               ? (typeof x.decode_tx.amount.amount !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.amount.amount) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.amount[0] !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.amount[0].amount) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${formatTokenAmount(x.decode_tx.amount.amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.amount[0] !== 'undefined' &&
+                  `${formatTokenAmount(x.decode_tx.amount[0].amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           commission:
             typeof x.decode_tx.commission !== 'undefined'
               ? (typeof x.decode_tx.commission.amount !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.commission.amount) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.commission[0] !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.commission[0].amount) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${formatTokenAmount(x.decode_tx.commission.amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.commission[0] !== 'undefined' &&
+                  `${formatTokenAmount(x.decode_tx.commission[0].amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           txnFee: `${formatGasAmount(x.decode_tx.fee_amount) + ' ' + 'SIX'}`,
           time: toDay(x.time_stamp)
@@ -483,26 +590,26 @@ export default {
           value:
             typeof x.decode_tx.amount !== 'undefined'
               ? (typeof x.decode_tx.amount.amount !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.amount.amount) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.amount[0] !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.amount[0].amount) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${formatTokenAmount(x.decode_tx.amount.amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.amount[0] !== 'undefined' &&
+                  `${formatTokenAmount(x.decode_tx.amount[0].amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           commission:
             typeof x.decode_tx.commission !== 'undefined'
               ? (typeof x.decode_tx.commission.amount !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.commission.amount) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.commission[0] !== 'undefined' &&
-                `${formatTokenAmount(x.decode_tx.commission[0].amount) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${formatTokenAmount(x.decode_tx.commission.amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.commission[0] !== 'undefined' &&
+                  `${formatTokenAmount(x.decode_tx.commission[0].amount) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           txnFee: `${formatGasAmount(x.decode_tx.fee_amount) + ' ' + 'SIX'}`,
           time: toDay(x.time_stamp)
@@ -559,26 +666,26 @@ export default {
           value:
             typeof x.decode_tx.amount !== 'undefined'
               ? (typeof x.decode_tx.amount.amount !== 'undefined' &&
-                `${x.decode_tx.amount.amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.amount[0] !== 'undefined' &&
-                `${x.decode_tx.amount[0].amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${x.decode_tx.amount.amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.amount[0] !== 'undefined' &&
+                  `${x.decode_tx.amount[0].amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           commission:
             typeof x.decode_tx.commission !== 'undefined'
               ? (typeof x.decode_tx.commission.amount !== 'undefined' &&
-                `${x.decode_tx.commission.amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.commission[0] !== 'undefined' &&
-                `${x.decode_tx.commission[0].amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${x.decode_tx.commission.amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.commission[0] !== 'undefined' &&
+                  `${x.decode_tx.commission[0].amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           txnFee: `${formatGasAmount(x.decode_tx.fee_amount) + ' ' + 'SIX'}`,
           time: toDay(x.time_stamp)
@@ -601,26 +708,26 @@ export default {
           value:
             typeof x.decode_tx.amount !== 'undefined'
               ? (typeof x.decode_tx.amount.amount !== 'undefined' &&
-                `${x.decode_tx.amount.amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.amount[0] !== 'undefined' &&
-                `${x.decode_tx.amount[0].amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${x.decode_tx.amount.amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.amount[0] !== 'undefined' &&
+                  `${x.decode_tx.amount[0].amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           commission:
             typeof x.decode_tx.commission !== 'undefined'
               ? (typeof x.decode_tx.commission.amount !== 'undefined' &&
-                `${x.decode_tx.commission.amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              (typeof x.decode_tx.commission[0] !== 'undefined' &&
-                `${x.decode_tx.commission[0].amount / Math.pow(10, 6) +
-                ' ' +
-                'SIX'}`) ||
-              '-'
+                  `${x.decode_tx.commission.amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                (typeof x.decode_tx.commission[0] !== 'undefined' &&
+                  `${x.decode_tx.commission[0].amount / Math.pow(10, 6) +
+                    ' ' +
+                    'SIX'}`) ||
+                '-'
               : '-',
           txnFee: `${formatGasAmount(x.decode_tx.fee_amount) + ' ' + 'SIX'}`,
           time: toDay(x.time_stamp)
@@ -703,14 +810,24 @@ export default {
           res.self_bond_rewards !== null &&
           res.self_bond_rewards.map(x => {
             const xh = x;
-            xh.amount = xh.denom === "asix" ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2) : xh.amount;
+            xh.amount =
+              xh.denom === 'asix'
+                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(
+                    2
+                  )
+                : xh.amount;
             return xh;
           });
         const commission =
           res.val_commission !== null &&
           res.val_commission.map(x => {
             const xh = x;
-            xh.amount = xh.denom === "asix" ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2) : xh.amount;
+            xh.amount =
+              xh.denom === 'asix'
+                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(
+                    2
+                  )
+                : xh.amount;
             return xh;
           });
 
@@ -757,13 +874,13 @@ export default {
     apr(rate) {
       const provision =
         (this.mintInflation * Number(Number(this.bankTotals[0].amount))) /
-        10 ** 6 || 0;
+          10 ** 6 || 0;
       const allStakedToken =
         Number(Number(this.stakingPool.bondedToken)) / 10 ** 6 || 0;
       const annualProfit =
         (provision / allStakedToken) *
-        (1 - this.communityTax.params.community_tax) *
-        (1 - rate) || 0;
+          (1 - this.communityTax.params.community_tax) *
+          (1 - rate) || 0;
       return `${parseFloat((annualProfit * 100).toFixed(2))} %`;
     },
     fetch_status(item, lastHeight) {
@@ -800,12 +917,33 @@ export default {
     },
     fetch_details(data) {
       const output = {};
-      const input = data;
-      input
-        .split('|')
-        .map(x => _.set(output, x.split('=')[0], x.split('=')[1]));
+      if (!data || typeof data !== 'string') return output;
+
+      try {
+        data.split('|').forEach(pair => {
+          const [key, value] = pair.split('=');
+          if (key && value) _.set(output, key, value);
+        });
+      } catch (err) {
+        console.warn('[fetch_details] error parsing details:', err);
+      }
 
       return output;
+    },
+    avatarUrl(details) {
+      if (!details) return null;
+
+      const { im } = this.fetch_details(details);
+      if (!im) return null;
+
+      if (im.startsWith('n:')) {
+        const id = im.slice(2);
+        const url = `https://files.catbox.moe/${id}.png`;
+        return url;
+      }
+
+      const url = `https://i.imgur.com/${im}.png`;
+      return url;
     },
     csvExport(arrData) {
       let csvContent = 'data:text/csv;charset=utf-8,';

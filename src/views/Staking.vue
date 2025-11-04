@@ -27,21 +27,18 @@
           >
             <template #aside>
               <b-avatar
-                v-if="data.item.description.details"
+                v-if="
+                  data.item.description.details &&
+                    avatarUrl(data.item.description.details)
+                "
                 size="32"
                 variant="light-primary"
                 :style="{ border: '.5px solid rgba(198,198,198,0.5)' }"
-                :src="
-                  `https://i.imgur.com/${
-                    fetch_details(data.item.description.details).im
-                  }.png`
-                "
+                :src="avatarUrl(data.item.description.details)"
               />
-              <b-avatar
-                v-if="!data.item.description.details"
-                :src="require('@/assets/images/logo/six-network-logo.png')"
-              >
-                <!-- <feather-icon icon="ServerIcon" /> -->
+
+              <b-avatar v-else size="32" variant="light-secondary">
+                <feather-icon icon="UserIcon" size="18" />
               </b-avatar>
             </template>
             <span class="font-weight-bolder d-block text-nowrap text-uppercase">
@@ -144,18 +141,17 @@
             >
               <template #aside>
                 <b-avatar
-                  v-if="data.item.description.details"
+                  v-if="
+                    data.item.description.details &&
+                      avatarUrl(data.item.description.details)
+                  "
                   size="32"
                   variant="light-primary"
                   :style="{ border: '.5px solid rgba(198,198,198,0.5)' }"
-                  :src="
-                    `https://i.imgur.com/${
-                      fetch_details(data.item.description.details).im
-                    }.png`
-                  "
+                  :src="avatarUrl(data.item.description.details)"
                 />
-                <b-avatar v-if="!data.item.description.details">
-                  <feather-icon icon="ServerIcon" />
+                <b-avatar v-else size="32" variant="light-secondary">
+                  <feather-icon icon="UserIcon" size="18" />
                 </b-avatar>
               </template>
               <span
@@ -517,12 +513,35 @@ export default {
         });
       }
     },
+
+    avatarUrl(details) {
+      if (!details) return null;
+
+      const { im } = this.fetch_details(details);
+      if (!im) return null;
+
+      if (im.startsWith('n:')) {
+        const id = im.slice(2);
+        const url = `https://files.catbox.moe/${id}.png`;
+        return url;
+      }
+
+      const url = `https://i.imgur.com/${im}.png`;
+      return url;
+    },
+
     fetch_details(data) {
       const output = {};
-      const input = data;
-      input
-        .split('|')
-        .map(x => _.set(output, x.split('=')[0], x.split('=')[1]));
+      if (!data || typeof data !== 'string') return output;
+
+      try {
+        data.split('|').forEach(pair => {
+          const [key, value] = pair.split('=');
+          if (key && value) _.set(output, key, value);
+        });
+      } catch (err) {
+        console.warn('[fetch_details] error parsing details:', err);
+      }
 
       return output;
     }
