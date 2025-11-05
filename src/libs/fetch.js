@@ -138,12 +138,18 @@ export default class ChainFetch {
 
   async getBankTotal(denom) {
     if (compareVersions(this.config.sdk_version, '0.40') < 0) {
-      return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => ({
-        amount: commonProcess(data),
-        denom
-      }));
+      return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => {
+        const result = {
+          amount: commonProcess(data),
+          denom
+        };
+        return result;
+      });
     }
-    return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => commonProcess(data));
+    return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => {  
+      const result = commonProcess(data);
+      return result;
+    });
   }
 
   async getBankTotals() {
@@ -154,27 +160,53 @@ export default class ChainFetch {
   }
 
   async getStakingPool() {
-    return this.get('/cosmos/staking/v1beta1/pool').then(data =>
-      new StakingPool().init(commonProcess(data))
-    );
+    return this.get('/cosmos/staking/v1beta1/pool').then(data => {
+      const processedData = commonProcess(data);
+      const result = new StakingPool().init(processedData);
+      return result;
+    });
   }
 
   async getMintingInflation() {
     if (this.isModuleLoaded('minting')) {
-      return this.get('/cosmos/mint/v1beta1/inflation').then(data =>
-        Number(commonProcess(data))
-      );
+      return this.get('/cosmos/mint/v1beta1/inflation').then(data => {
+        
+        // Handle different API response structures
+        let inflationValue;
+        if (data.inflation !== undefined) {
+          inflationValue = data.inflation;
+        } else if (data.result !== undefined) {
+          inflationValue = data.result;
+        } else {
+          inflationValue = data;
+        }
+        const processedValue = commonProcess(inflationValue);
+        const finalValue = Number(processedValue);
+        
+        return finalValue;
+      });
     }
     return null;
   }
 
   async getStakingParameters() {
     return this.get('/cosmos/staking/v1beta1/params').then(data => {
+ 
       this.getSelectedConfig();
-      return StakingParameters.create(
-        commonProcess(data),
+      // Extract the params from the API response
+      const processedData = commonProcess(data);
+      // The API returns {params: {...}}, so we need to get the params object
+      const stakingParams = processedData.params || processedData;
+      const result = StakingParameters.create(
+        stakingParams,
         this.config.chain_name
       );
+
+      return result;
+    }).catch(error => {
+      console.error('❌ Error in getStakingParameters:', error);
+      // Return a default object to prevent crashes
+      return new StakingParameters();
     });
   }
 
@@ -615,7 +647,6 @@ export default class ChainFetch {
   }
 
   static async fetchTokenQuote(symbol) {
-    console.log("-symbol-", symbol)
     return ChainFetch.fetchCoinMarketCap(`/quote/${symbol !== "SIX" ? "SIX": symbol}`);
   }
 

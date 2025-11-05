@@ -250,37 +250,65 @@ export default {
     });
 
     this.$http.getStakingParameters().then(res => {
-      this.staking = this.normalize(res, 'Staking Parameters');
 
+      this.staking = this.normalize(res, 'Staking Parameters');
+      // Get bond denomination with fallback options
+      const bondDenom = res.bond_denom 
       Promise.all([
         this.$http.getStakingPool(),
-        this.$http.getBankTotal(res.params.bond_denom)
+        this.$http.getBankTotal(bondDenom)
       ]).then(pool => {
+     
         const bondedAndSupply = this.chain.items.findIndex(
           x => x.subtitle === 'bonded_and_supply'
         );
-        this.$set(
-          this.chain.items[bondedAndSupply],
-          'title',
-          `${formatNumber(
-            formatTokenAmount(pool[0].bondedToken, 2, res.bond_denom, false),
+
+        if (bondedAndSupply >= 0 && pool.length >= 2 && pool[0] && pool[1]) {
+          const formattedBonded = formatNumber(
+            formatTokenAmount(pool[0].element.pool.bonded_tokens, 2, bondDenom, false),
             true,
             0
-          )}/${formatNumber(
-            formatTokenAmount(pool[1].amount, 2, res.bond_denom, false),
+          );
+          const formattedTotal = formatNumber(
+            formatTokenAmount(pool[1].amount.amount, 2, bondDenom, false),
             true,
             0
-          )}`
-        );
-        const bondedRatio = this.chain.items.findIndex(
-          x => x.subtitle === 'bonded_ratio'
-        );
-        this.$set(
-          this.chain.items[bondedRatio],
-          'title',
-          `${percent(pool[0].bondedToken / pool[1].amount)}%`
-        );
+          );
+          
+          const titleValue = `${formattedBonded}/${formattedTotal}`;
+
+          this.$set(
+            this.chain.items[bondedAndSupply],
+            'title',
+            titleValue
+          );
+          
+          const bondedRatio = this.chain.items.findIndex(
+            x => x.subtitle === 'bonded_ratio'
+          );
+          
+          if (bondedRatio >= 0) {
+            const ratioValue = `${percent(pool[0].element.pool.bonded_tokens / pool[1].amount.amount)}%`;
+        
+            this.$set(
+              this.chain.items[bondedRatio],
+              'title',
+              ratioValue
+            );
+          }
+        } else {
+          console.error('❌ Invalid pool data or bonded_and_supply item not found:', {
+            bondedAndSupply,
+            poolLength: pool.length,
+            pool0Exists: !!pool[0],
+            pool1Exists: !!pool[1]
+          });
+        }
+      }).catch(poolError => {
+        console.error('❌ Error fetching pool data:', poolError);
       });
+    }).catch(stakingError => {
+      console.error('❌ Error fetching staking parameters:', stakingError);
     });
     this.$http.getSlashingParameters().then(res => {
       this.slashing = this.normalize(res, 'Slashing Parameters');
