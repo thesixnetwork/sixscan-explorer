@@ -86,7 +86,8 @@ import {
   consensusPubkeyToHexAddress,
   getCachedValidators,
   timeIn,
-  toDay
+  toDay,
+  base64ToHex
 } from '@/libs/utils';
 
 export default {
@@ -152,6 +153,7 @@ export default {
     clearInterval(this.timer);
   },
   methods: {
+    base64ToHex,
     pinValidator() {
       localStorage.setItem('pinned', this.pinned);
     },
@@ -180,14 +182,19 @@ export default {
         }
 
         const sigs = this.initColor();
-        // console.log("sigs:",sigs)
-        // console.log("🚀 Initializing blocks with all validators set to RED.");
-        // console.log("d.block.last_commit.signatures:",d.block.last_commit.signatures)
+        
+        // Process signatures - convert base64 validator addresses to hex for matching
         d.block.last_commit.signatures.forEach(x => {
-          if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+          if (x.validator_address) {
+            // Convert base64 validator address to hex format
+            const hexAddress = this.base64ToHex(x.validator_address);
+            if (sigs[hexAddress]) {
+              sigs[hexAddress] = 'bg-success';
+            }
+          }
         });
+        
         blocks.push({ sigs, height });
-        // console.log("🚀 Initial blocks loaded:", blocks);
         this.blocks = blocks;
 
         this.timer = setInterval(this.fetch_latest, 6000);
@@ -206,8 +213,14 @@ export default {
         this.$http.getBlockByHeight(height).then(res => {
           resolve();
           const sigs = this.initColor();
+          // Convert base64 validator addresses to hex format for matching
           res.block.last_commit.signatures.forEach(x => {
-            if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+            if (x.validator_address) {
+              const hexAddress = this.base64ToHex(x.validator_address);
+              if (sigs[hexAddress]) {
+                sigs[hexAddress] = 'bg-success';
+              }
+            }
           });
           this.$set(block, 'sigs', sigs);
         });
@@ -216,8 +229,14 @@ export default {
     fetch_latest() {
       this.$http.getLatestBlock().then(res => {
         const sigs = this.initColor();
+        // Convert base64 validator addresses to hex format for matching
         res.block.last_commit.signatures.forEach(x => {
-          if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+          if (x.validator_address) {
+            const hexAddress = this.base64ToHex(x.validator_address);
+            if (sigs[hexAddress]) {
+              sigs[hexAddress] = 'bg-success';
+            }
+          }
         });
         const block = this.blocks.find(
           b => b[1] === res.block.last_commit.height
