@@ -13,7 +13,7 @@ export default class ValidatorDistribution {
     self.element = element
     self.operator_address = element.operator_address
     self.self_bond_rewards = element.self_bond_rewards
-    self.val_commission = element.val_commission
+    self.val_commission = element.val_commission || element.commission
     return self
   }
 

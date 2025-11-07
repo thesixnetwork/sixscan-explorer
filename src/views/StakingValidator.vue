@@ -4,7 +4,7 @@
       <b-row>
         <!-- User Info: Left col -->
         <b-col
-          cols="21"
+          cols="12"
           xl="6"
           class="d-flex justify-content-between flex-column"
         >
@@ -86,7 +86,7 @@
               </b-avatar>
               <div class="ml-1">
                 <h5 class="mb-0">
-                  {{ apr(validator.commission.rate) }}
+                  {{ getAnnualProfit() }}
                 </h5>
                 <small>Annual Profit</small>
               </div>
@@ -103,8 +103,14 @@
                 <span class="font-weight-bold">Status</span>
               </th>
               <td class="pb-50 text-capitalize">
-                <b-badge v-if="validator.status == 3" variant="light-success">
+                <b-badge v-if="validator.status === 'BOND_STATUS_BONDED' || validator.status == 3" variant="light-success">
                   Active
+                </b-badge>
+                <b-badge v-else-if="validator.status === 'BOND_STATUS_UNBONDING'" variant="light-warning">
+                  Unbonding
+                </b-badge>
+                <b-badge v-else-if="validator.status === 'BOND_STATUS_UNBONDED'" variant="light-danger">
+                  Unbonded
                 </b-badge>
                 <span v-else>{{ validator.status }}</span>
               </td>
@@ -161,6 +167,47 @@
               </td>
               <td v-else>
                 <span>{{ '-' }}</span>
+              </td>
+            </tr>
+            <!-- SIX Protocol specific fields -->
+            <tr v-if="validator.max_license">
+              <th class="d-flex align-items-center">
+                <feather-icon icon="AwardIcon" class="mr-75" />
+                <span class="font-weight-bold">Max License</span>
+              </th>
+              <td class="pb-50">
+                {{ validator.max_license }}
+              </td>
+            </tr>
+            <tr v-if="validator.license_count">
+              <th class="d-flex align-items-center">
+                <feather-icon icon="CreditCardIcon" class="mr-75" />
+                <span class="font-weight-bold">License Count</span>
+              </th>
+              <td class="pb-50">
+                {{ validator.license_count }}
+              </td>
+            </tr>
+            <tr v-if="validator.mode">
+              <th class="d-flex align-items-center">
+                <feather-icon icon="SettingsIcon" class="mr-75" />
+                <span class="font-weight-bold">Mode</span>
+              </th>
+              <td class="pb-50">
+                <b-badge variant="light-info">
+                  {{ formatValidatorMode(validator.mode) }}
+                </b-badge>
+              </td>
+            </tr>
+            <tr v-if="typeof validator.enable_redelegation !== 'undefined'">
+              <th class="d-flex align-items-center">
+                <feather-icon icon="RefreshCwIcon" class="mr-75" />
+                <span class="font-weight-bold">Redelegation</span>
+              </th>
+              <td class="pb-50">
+                <b-badge :variant="validator.enable_redelegation ? 'light-success' : 'light-danger'">
+                  {{ validator.enable_redelegation ? 'Enabled' : 'Disabled' }}
+                </b-badge>
               </td>
             </tr>
           </table>
@@ -233,6 +280,7 @@
             Propose to CSV
             <feather-icon icon="FileTextIcon" size="16" />
           </b-button>
+        
         </div>
       </div>
       <b-card
@@ -495,7 +543,8 @@ export default {
       account_txs: {},
       validator_txs: {},
       isBusy: false,
-      proposeTransactions: {},
+      proposeTransactions: [], // Initialize as array, not object
+      proposeApiLoaded: false, // Track if API has completed
       optionBlock: [
         { text: 'Account Txs', value: 'account_tx' },
         { text: 'Validator Txs', value: 'validator_tx' },
@@ -630,17 +679,8 @@ export default {
       }
     },
     proposeTxs() {
-      if (this.proposeTransactions.length > 0) {
-        this.isBusy = false;
-        return this.proposeTransactions.map(x => ({
-          date:
-            moment(String(x._id.month)).format('MMMM') +
-            ' ' +
-            moment(String(x._id.year)).format('YYYY'),
-          totalTxs: x.txsSize,
-          totalProposed: x.proposeCount
-        }));
-      } else {
+      // Check if we should show loading state
+      if (!this.proposeApiLoaded) {
         this.isBusy = true;
         return [
           {
@@ -649,6 +689,28 @@ export default {
             totalProposed: ''
           }
         ];
+      }
+      
+      // Ensure we have a valid array with data
+      if (Array.isArray(this.proposeTransactions) && this.proposeTransactions.length > 0) {
+
+        this.isBusy = false;
+        
+        return this.proposeTransactions.map(x => {
+
+          return {
+            date:
+              moment(String(x._id?.month || '')).format('MMMM') +
+              ' ' +
+              moment(String(x._id?.year || '')).format('YYYY'),
+            totalTxs: x.txsSize || 0,
+            totalProposed: x.proposeCount || 0
+          };
+        });
+      } else {
+
+        this.isBusy = false; // Don't show loading, show empty state
+        return [];
       }
     },
     accountTxsCsv() {
@@ -736,14 +798,14 @@ export default {
       return [];
     },
     blockCsv() {
-      if (this.proposeTransactions.length) {
+      if (Array.isArray(this.proposeTransactions) && this.proposeTransactions.length) {
         return this.proposeTransactions.map(x => ({
           date:
-            moment(String(x._id.month)).format('MMMM') +
+            moment(String(x._id?.month || '')).format('MMMM') +
             ' ' +
-            moment(String(x._id.year)).format('YYYY'),
-          totalTxs: x.txsSize,
-          totalProposed: x.proposeCount
+            moment(String(x._id?.year || '')).format('YYYY'),
+          totalTxs: x.txsSize || 0,
+          totalProposed: x.proposeCount || 0
         }));
       }
       return [];
@@ -751,7 +813,7 @@ export default {
   },
   created() {
     this.$http.getStakingPool().then(res => {
-      this.stakingPool = res;
+      this.stakingPool = res.element.pool;
     });
     this.$http.getStakingParameters().then(res => {
       this.stakingParameter = res;
@@ -776,60 +838,157 @@ export default {
   },
   methods: {
     initial() {
-      this.$http.getStakingValidator(this.address).then(data => {
-        this.validator = data;
-        this.processAddress(data.operator_address, data.consensus_pubkey);
-        this.$http.getTxsBySender(this.accountAddress).then(res => {
-          this.account_txs = res;
-        });
-        this.$http.getTxsBySender(this.operatorAddress).then(res => {
-          this.validator_txs = res;
-        });
+      // Try direct API call first to get raw data
+      const validatorUrl = `${this.$http.config.api}/cosmos/staking/v1beta1/validators/${this.address}`;
+      
+      fetch(validatorUrl)
+        .then(response => response.json())
+        .then(rawData => {
+          if (rawData.validator) {
+            const validator = rawData.validator;
 
-        const { identity } = data.description;
-        keybase(identity).then(d => {
-          if (Array.isArray(d.them) && d.them.length > 0) {
-            this.$set(this.validator, 'avatar', d.them[0].pictures.primary.url);
-            this.$store.commit('cacheAvatar', {
-              identity,
-              url: d.them[0].pictures.primary.url
+            // Use raw data with minimal processing
+            this.validator = {
+              ...validator,
+              tokens: Number(validator.tokens),
+              delegator_shares: Number(validator.delegator_shares),
+              min_self_delegation: Number(validator.min_self_delegation || 0),
+              // Keep commission structure as-is from API
+              commission: validator.commission
+            };
+            
+           
+            
+            // Continue with rest of initialization
+            this.processAddress(this.validator.operator_address, this.validator.consensus_pubkey);
+            this.$http.getTxsBySender(this.accountAddress).then(res => {
+              this.account_txs = res;
             });
+            this.$http.getTxsBySender(this.operatorAddress).then(res => {
+              this.validator_txs = res;
+            });
+
+            const { identity } = this.validator.description;
+            keybase(identity).then(d => {
+              if (Array.isArray(d.them) && d.them.length > 0) {
+                this.$set(this.validator, 'avatar', d.them[0].pictures.primary.url);
+                this.$store.commit('cacheAvatar', {
+                  identity,
+                  url: d.them[0].pictures.primary.url
+                });
+              }
+            });
+            this.hexAddress = consensusPubkeyToHexAddress(this.validator.consensus_pubkey);
+
+            
+            if (!this.hexAddress || this.hexAddress === '-' || this.hexAddress === 'N/A') {
+              console.warn("⚠️ Invalid hex address, skipping propose count API call");
+              this.proposeTransactions = [];
+              this.proposeApiLoaded = true; // Mark as loaded so it doesn't show loading state
+              return;
+            }
+            
+            // Use environment variable or fallback to a reasonable default
+            const apiValidatorBase = process.env.VUE_APP_API_VALIDATOR;
+            const proposeUrl = `${apiValidatorBase}/api/validator/propose-count?proposerAddr=${this.hexAddress}`;
+
+            
+            fetch(proposeUrl)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(resp => {
+                this.proposeTransactions = Array.isArray(resp.data) ? resp.data : [];
+                this.proposeApiLoaded = true; // Mark API as loaded
+              })
+              .catch(error => {
+                console.error("❌ Error loading propose count:", error);
+                this.proposeTransactions = []; // Ensure it's always an array
+                this.proposeApiLoaded = true; // Mark API as loaded even on error
+              });
           }
+        })
+        .catch(error => {
+          console.error("❌ Direct API call failed, falling back to processed data:", error);
+          
+          // Fallback to the original processed data
+          this.$http.getStakingValidator(this.address).then(data => {
+            this.validator = data;
+            this.processAddress(data.operator_address, data.consensus_pubkey);
+            this.$http.getTxsBySender(this.accountAddress).then(res => {
+              this.account_txs = res;
+            });
+            this.$http.getTxsBySender(this.operatorAddress).then(res => {
+              this.validator_txs = res;
+            });
+
+            const { identity } = data.description;
+            keybase(identity).then(d => {
+              if (Array.isArray(d.them) && d.them.length > 0) {
+                this.$set(this.validator, 'avatar', d.them[0].pictures.primary.url);
+                this.$store.commit('cacheAvatar', {
+                  identity,
+                  url: d.them[0].pictures.primary.url
+                });
+              }
+            });
+            this.hexAddress = consensusPubkeyToHexAddress(data.consensus_pubkey);            
+            if (!this.hexAddress || this.hexAddress === '-' || this.hexAddress === 'N/A') {
+              console.warn("⚠️ [Fallback] Invalid hex address, skipping propose count API call");
+              this.proposeTransactions = [];
+              this.proposeApiLoaded = true; // Mark as loaded so it doesn't show loading state
+              return;
+            }
+            
+            // Use environment variable or fallback to a reasonable default
+            const apiValidatorBase = process.env.VUE_APP_API_VALIDATOR;
+            const proposeUrl = `${apiValidatorBase}/api/validator/propose-count?proposerAddr=${this.hexAddress}`;
+            fetch(proposeUrl)
+              .then(response => {
+
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then(resp => {
+                this.proposeTransactions = Array.isArray(resp.data) ? resp.data : [];
+                this.proposeApiLoaded = true; // Mark API as loaded
+              })
+              .catch(error => {
+                console.error("❌ [Fallback] Error loading propose count:", error);
+                this.proposeTransactions = []; // Ensure it's always an array
+                this.proposeApiLoaded = true; // Mark API as loaded even on error
+              });
+          });
         });
-        this.hexAddress = consensusPubkeyToHexAddress(data.consensus_pubkey);
-        fetch(
-          `${process.env.VUE_APP_API_VALIDATOR}/api/validator/propose-count?proposerAddr=${this.hexAddress}`
-        )
-          .then(data => data.json())
-          .then(resp => {
-            this.proposeTransactions = resp.data;
-          });
-      });
-      this.$http.getValidatorDistribution(this.address).then(res => {
-        const self =
-          res.self_bond_rewards !== null &&
-          res.self_bond_rewards.map(x => {
-            const xh = x;
-            xh.amount =
-              xh.denom === 'asix'
-                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(
-                    2
-                  )
+        
+      // Load validator distribution data
+      this.$http.getValidatorDistribution(this.address).then(res => {        
+        // Process self bond rewards - handle both null and empty array
+        const self = res.self_bond_rewards && Array.isArray(res.self_bond_rewards) && res.self_bond_rewards.length > 0 
+          ? res.self_bond_rewards.map(x => {
+              const xh = { ...x };
+              xh.amount = xh.denom === 'asix'
+                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2)
                 : xh.amount;
-            return xh;
-          });
-        const commission =
-          res.val_commission !== null &&
-          res.val_commission.map(x => {
-            const xh = x;
-            xh.amount =
-              xh.denom === 'asix'
-                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(
-                    2
-                  )
+              return xh;
+            })
+          : []; // Return empty array instead of false
+        
+        // Process commission - handle both null and empty array
+        const commission = res.val_commission && Array.isArray(res.val_commission) && res.val_commission.length > 0
+          ? res.val_commission.map(x => {
+              const xh = { ...x };
+              xh.amount = xh.denom === 'asix'
+                ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2)
                 : xh.amount;
-            return xh;
-          });
+              return xh;
+            })
+          : []; // Return empty array instead of false
 
         const mapObject = {
           element: res.element,
@@ -838,6 +997,14 @@ export default {
           val_commission: commission
         };
         this.distribution = mapObject;
+      }).catch(error => {
+        console.error("❌ Error loading validator distribution:", error);
+        // Set empty distribution object on error
+        this.distribution = {
+          operator_address: '',
+          self_bond_rewards: [],
+          val_commission: []
+        };
       });
     },
     pageload(v) {
@@ -855,33 +1022,114 @@ export default {
     percentFormat(value) {
       return percent(value);
     },
-    processAddress(operAddress, consensusPubkey) {
+    processAddress(operAddress, consensusPubkey) { 
       this.accountAddress = operatorAddressToAccount(operAddress);
       this.operatorAddress = operAddress;
-      this.hexAddress = consensusPubkeyToHexAddress(consensusPubkey);
+      
+      try {
+        // The consensusPubkeyToHexAddress function expects the full pubkey object
+        // not just the key string
+        if (consensusPubkey && typeof consensusPubkey === 'object') {
+          // Unwrap Vue Observer to get raw object before passing to utility function
+          const rawConsensusPubkey = JSON.parse(JSON.stringify(consensusPubkey));
+          this.hexAddress = consensusPubkeyToHexAddress(rawConsensusPubkey);
+        } else if (typeof consensusPubkey === 'string') {
+          // For string format, try direct conversion
+          this.hexAddress = consensusPubkeyToHexAddress(consensusPubkey);
+        } else {
+          this.hexAddress = '-';
+          return;
+        }
+      } catch (error) {
+        console.error("❌ Error processing consensus pubkey:", error);
+        
+        // For now, just skip the hex address conversion and set a placeholder
+        // This will allow the rest of the component to work properly
+        this.hexAddress = 'N/A';
+        
+        // Log the error details for debugging
+        console.log("  - Error details:", {
+          errorMessage: error.message,
+          consensusPubkey: consensusPubkey,
+          consensusPubkeyType: typeof consensusPubkey
+        });
+      }
+      
       this.$http
         .getStakingDelegatorDelegation(this.accountAddress, operAddress)
         .then(d => {
           this.selfDelegation = d;
+        })
+        .catch(error => {
+          console.error("❌ Error loading self delegation:", error);
+          this.selfDelegation = { balance: { amount: 0 } };
         });
     },
     tokenFormatter(token) {
-      return formatToken({
+      const denomination = this.stakingParameter?.bond_denom || 'usix'; // Fallback to usix
+      const result = formatToken({
         amount: token,
-        denom: this.stakingParameter.bond_denom
+        denom: denomination
       });
+      return result;
     },
     apr(rate) {
-      const provision =
-        (this.mintInflation * Number(Number(this.bankTotals[0].amount))) /
-          10 ** 6 || 0;
-      const allStakedToken =
-        Number(Number(this.stakingPool.bondedToken)) / 10 ** 6 || 0;
+      
+      // Check if required data is available
+      if (!this.mintInflation || !this.bankTotals || !Array.isArray(this.bankTotals) || this.bankTotals.length === 0) {
+        return '0.00 %';
+      }
+      
+      const bondedTokenExists = this.stakingPool?.bondedToken || this.stakingPool?.bonded_tokens;
+      if (!bondedTokenExists) {
+        return '0.00 %';
+      }
+      
+      const communityTaxExists = this.communityTax?.params?.community_tax !== undefined || this.communityTax?.community_tax !== undefined;
+      if (!communityTaxExists) {
+        return '0.00 %';
+      }
+      
+      // Get bank total supply - handle different possible formats
+      const bankAmount = Number(this.bankTotals[0]?.amount || 0);
+      
+      // Convert bank amount to same unit as bonded tokens (divide by 10^18 for SIX Protocol)
+      // SIX Protocol uses 18 decimals, but staking amounts are typically in 6 decimals
+      const normalizedBankAmount = bankAmount / (10 ** 18); // Convert from asix to SIX
+      
+      // Calculate provision using normalized amount
+      const provision = (this.mintInflation * normalizedBankAmount) || 0;
+      
+      const bondedTokenValue = this.stakingPool.bondedToken || this.stakingPool.bonded_tokens;
+      
+      // Convert bonded tokens to SIX units (from usix)
+      const allStakedToken = Number(bondedTokenValue) / (10 ** 6) || 0; // Convert from usix to SIX
+      
+      // Prevent division by zero
+      if (allStakedToken === 0) {
+        return '0.00 %';
+      }
+      
+      const communityTaxValue = this.communityTax.params?.community_tax || this.communityTax.community_tax;
+      const communityTaxRate = Number(communityTaxValue || 0);
+      const validatorRate = Number(rate || 0);
+      
+      // Calculate the ratio of provision to staked tokens
+      const provisionRatio = provision / allStakedToken;
+      
       const annualProfit =
-        (provision / allStakedToken) *
-          (1 - this.communityTax.params.community_tax) *
-          (1 - rate) || 0;
-      return `${parseFloat((annualProfit * 100).toFixed(2))} %`;
+        provisionRatio *
+        (1 - communityTaxRate) *
+        (1 - validatorRate) || 0;
+        
+      // Check for invalid results or unreasonable values
+      if (!isFinite(annualProfit) || isNaN(annualProfit)) {
+        return '0.00 %';
+      }
+    
+      const percentResult = parseFloat((annualProfit * 100).toFixed(3));
+      
+      return `${percentResult} %`;
     },
     fetch_status(item, lastHeight) {
       return this.$http.getBlockByHeight(item[1]).then(res => {
@@ -976,6 +1224,15 @@ export default {
     validatorBlocks() {
       if (this.isInactiveLoaded) return;
       this.isInactiveLoaded = true;
+    },
+    formatValidatorMode(mode) {
+      if (!mode) return '';
+      return mode.replace('MODE_', '');
+    },
+    getAnnualProfit() {      
+      const rate = this.validator.commission?.commission_rates?.rate || 
+                   this.validator.commission?.rate || 0;
+      return this.apr(rate);
     }
   }
 };

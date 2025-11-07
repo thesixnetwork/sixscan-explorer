@@ -38,10 +38,10 @@
             </b-card-title>
           </b-card-header>
           <b-table
-            :items="blocks"
+            :items="tableBlocks"
             :fields="list_fields"
             :sort-desc="true"
-            sort-by="tokens"
+            sort-by="height"
             striped
             hover
             stacked="sm"
@@ -49,19 +49,19 @@
             <!-- Column: Height -->
             <template #cell(height)="data">
               <router-link
-                :to="`/${chain.title}/blocks/${data.item.block.header.height}`"
+                :to="`/${chain.title}/blocks/${data.item.height}`"
               >
-                {{ data.item.block.header.height }}
+                {{ data.item.height }}
               </router-link>
             </template>
             <template #cell(hash)="data">
-              <small>{{ data.item.block_id.hash }}</small>
+              <small>{{ data.item.hash }}</small>
             </template>
             <template #cell(time)="data">
-              {{ formatTime(data.item.block.header.time) }}
+              {{ formatTime(data.item.time) }}
             </template>
             <template #cell(proposer)="data">
-              {{ formatProposer(data.item.block.header.proposer_address) }}
+              {{ formatProposer(data.item.proposer_address) }}
             </template>
           </b-table>
         </b-card>
@@ -91,8 +91,12 @@ import {
   timeIn,
   toDay,
   toDuration,
-  tokenFormatter
+  tokenFormatter,
+  base64ToHex,
+  base64ToBech32Address,
+  formatValidatorAddress
 } from '@/libs/utils';
+import { Bech32 } from '@cosmjs/encoding';
 
 import SummaryParmetersComponent from './SummaryParmetersComponent.vue';
 import SummaryAssetsComponent from './SummaryAssetsComponent.vue';
@@ -203,6 +207,29 @@ export default {
         };
       }
       return null;
+    },
+    // Create clean, non-reactive data for the table
+    tableBlocks() {
+      return this.blocks.map(block => {
+        const cleanBlock = {
+          height: block.block?.header?.height || 0,
+          hash: base64ToHex(block.block_id?.hash || ''),
+          time: block.block?.header?.time || '',
+          proposer_address: base64ToBech32Address(block.block?.header?.proposer_address || '', this.chain.title),
+          // Keep original block reference for navigation
+          originalBlock: block
+        };
+        return cleanBlock;
+      }).filter(block => block.height > 0); // Only include valid blocks
+    }
+  },
+  watch: {
+    // Watch for changes in validators to refresh proposer names
+    '$http.config.chain_name': {
+      handler() {
+        // Force re-computation of tableBlocks when validators might be loaded
+        this.$forceUpdate();
+      }
     }
   },
   created() {
@@ -215,7 +242,12 @@ export default {
       }
 
       if (!getCachedValidators()) {
-        this.$http.getValidatorList();
+        this.$http.getValidatorList().then(() => {
+          // Force table refresh once validators are loaded
+          this.$forceUpdate();
+        }).catch(error => {
+          console.warn("⚠️ Failed to load validators:", error);
+        });
       }
 
       let promise = Promise.resolve();
@@ -224,12 +256,14 @@ export default {
           () =>
             new Promise(resolve => {
               this.$http.getBlockByHeight(item).then(b => {
+              
                 resolve();
                 this.blocks.push(b);
               });
             })
         );
       });
+            
       this.timer = setInterval(this.fetch, 6000);
     });
 
@@ -383,8 +417,8 @@ export default {
     },
     length: v => (Array.isArray(v) ? v.length : 0),
     formatTime: v => toDay(v, 'time'),
-    formatProposer(v) {
-      return getStakingValidatorByHex(this.$http.config.chain_name, v);
+    formatProposer(bech32Address) {
+      return formatValidatorAddress(bech32Address, this.$http.config.chain_name);
     },
     fetch() {
       this.$http.getLatestBlock().then(b => {

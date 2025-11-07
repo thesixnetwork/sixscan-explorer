@@ -11,57 +11,61 @@
 
     <b-card-body class="overflow-auto" style="max-height:260px;">
       <!-- Rewards -->
-      <div v-for="d in data.self_bond_rewards" :key="d.amount">
-        <div class="mb-50">
-          <span class="font-weight-bold">
-            Rewards
-          </span>
-        </div>
-        <div class="transaction-item mb-1">
-          <b-media no-body class="align-items-center">
-            <b-media-aside>
-              <b-avatar
-                rounded
-                size="42"
-                variant="light-success"
-                text="R"
-                title="Rewards"
-              />
-            </b-media-aside>
-            <b-media-body>
-              <h6 class="transaction-title">
-                {{ d.denom === "asix" ? `${d.amount} SIX (EVM)`  : formatDenom(d) }}
-              </h6>
-            </b-media-body>
-          </b-media>
+      <div v-if="data && data.self_bond_rewards && data.self_bond_rewards.length > 0">
+        <div v-for="(d, index) in data.self_bond_rewards" :key="`reward-${index}`">
+          <div class="mb-50">
+            <span class="font-weight-bold">
+              Rewards
+            </span>
+          </div>
+          <div class="transaction-item mb-1">
+            <b-media no-body class="align-items-center">
+              <b-media-aside>
+                <b-avatar
+                  rounded
+                  size="42"
+                  variant="light-success"
+                  text="R"
+                  title="Rewards"
+                />
+              </b-media-aside>
+              <b-media-body>
+                <h6 class="transaction-title">
+                  {{ d.denom === "asix" ? `${d.amount} SIX (EVM)`  : formatDenom(d) }}
+                </h6>
+              </b-media-body>
+            </b-media>
+          </div>
         </div>
       </div>
-
+  
       <!-- Commission -->
-      <div v-for="d in data.val_commission" :key="d.amount">
-        <div class="mb-50">
-          <span class="font-weight-bold">
-            Commission
-          </span>
-        </div>
-        <div class="transaction-item mb-1">
-          <b-media no-body class="align-items-center">
-            <b-media-aside>
-              <b-avatar
-                rounded
-                size="42"
-                variant="link"
-                text="C"
-                title="Commission"
-                class="customizer-icon"
-              />
-            </b-media-aside>
-            <b-media-body>
-              <h6 class="transaction-title">
-                {{ d.denom === "asix" ? `${d.amount} SIX (EVM)` : formatDenom(d) }}
-              </h6>
-            </b-media-body>
-          </b-media>
+      <div v-if="data && data.val_commission && data.val_commission.length > 0">
+        <div v-for="(d, index) in data.val_commission" :key="`commission-${index}`">
+          <div class="mb-50">
+            <span class="font-weight-bold">
+              Commission
+            </span>
+          </div>
+          <div class="transaction-item mb-1">
+            <b-media no-body class="align-items-center">
+              <b-media-aside>
+                <b-avatar
+                  rounded
+                  size="42"
+                  variant="link"
+                  text="C"
+                  title="Commission"
+                  class="customizer-icon"
+                />
+              </b-media-aside>
+              <b-media-body>
+                <h6 class="transaction-title">
+                  {{ d.denom === "asix" ? `${d.amount} SIX (EVM)` : formatDenom(d) }}
+                </h6>
+              </b-media-body>
+            </b-media>
+          </div>
         </div>
       </div>
 

@@ -16,10 +16,10 @@ echo "Google Cloud LB Name : ${GCLOUD_LB_NAME}"
 echo -e "Enter to continue...\c"
 read
 
-yarn
+npm install --legacy-peer-deps
 _exit_if_fail $?
 
-npm run build:${DEPLOY_ENV} --fix
+NODE_OPTIONS="--openssl-legacy-provider" npm run build:${DEPLOY_ENV} --fix
 _exit_if_fail $?
 
 echo "Build ${GCLOUD_STORAGE_NAME} is SUCCESS"

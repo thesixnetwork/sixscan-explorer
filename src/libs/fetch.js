@@ -23,9 +23,16 @@ import OsmosAPI from './osmos';
 import { SixDataChainConnector } from '@sixnetwork/six-data-chain-sdk';
 
 function commonProcess(res) {
+  if (res == null) return res; // handles null and undefined
+
   if (res && Object.keys(res).includes('result')) {
     return res.result;
   }
+
+  if (res && Object.keys(res).includes('delegation_response')) {
+    return res.delegation_response;
+  }
+
   return res;
 }
 
@@ -124,15 +131,15 @@ export default class ChainFetch {
 
   async getValidatorDistribution(address) {
     return this.get(`/cosmos/distribution/v1beta1/validators/${address}`).then(data => {
-      const ret = ValidatorDistribution.create(commonProcess(data));
-      ret.versionFixed(this.config.sdk_version);
+      const ret = ValidatorDistribution.create(data);
+      // ret.versionFixed(this.config.sdk_version);
       return ret;
     });
   }
 
   async getStakingDelegatorDelegation(delegatorAddr, validatorAddr) {
     return this.get(
-      `/cosmos/staking/v1beta1/delegators/${delegatorAddr}/delegations/${validatorAddr}`
+      `/cosmos/staking/v1beta1/validators/${validatorAddr}/delegations/${delegatorAddr}`
     ).then(data => StakingDelegation.create(commonProcess(data)));
   }
 
@@ -146,7 +153,7 @@ export default class ChainFetch {
         return result;
       });
     }
-    return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => {  
+    return this.get(`/cosmos/bank/v1beta1/supply/by_denom?denom=${denom}`).then(data => {
       const result = commonProcess(data);
       return result;
     });
@@ -170,7 +177,7 @@ export default class ChainFetch {
   async getMintingInflation() {
     if (this.isModuleLoaded('minting')) {
       return this.get('/cosmos/mint/v1beta1/inflation').then(data => {
-        
+
         // Handle different API response structures
         let inflationValue;
         if (data.inflation !== undefined) {
@@ -182,7 +189,7 @@ export default class ChainFetch {
         }
         const processedValue = commonProcess(inflationValue);
         const finalValue = Number(processedValue);
-        
+
         return finalValue;
       });
     }
@@ -191,7 +198,7 @@ export default class ChainFetch {
 
   async getStakingParameters() {
     return this.get('/cosmos/staking/v1beta1/params').then(data => {
- 
+
       this.getSelectedConfig();
       // Extract the params from the API response
       const processedData = commonProcess(data);
@@ -633,8 +640,8 @@ export default class ChainFetch {
       return ChainFetch.fetch(
         ' https://api.coingecko.com',
         `/api/v3/coins/${coin ||
-          conf.assets[0]
-            .coingecko_id}/market_chart?vs_currency=${currency}&days=${days}`
+        conf.assets[0]
+          .coingecko_id}/market_chart?vs_currency=${currency}&days=${days}`
       );
     }
     return null;

@@ -180,10 +180,14 @@ export default {
         }
 
         const sigs = this.initColor();
+        // console.log("sigs:",sigs)
+        // console.log("🚀 Initializing blocks with all validators set to RED.");
+        // console.log("d.block.last_commit.signatures:",d.block.last_commit.signatures)
         d.block.last_commit.signatures.forEach(x => {
           if (x.validator_address) sigs[x.validator_address] = 'bg-success';
         });
         blocks.push({ sigs, height });
+        // console.log("🚀 Initial blocks loaded:", blocks);
         this.blocks = blocks;
 
         this.timer = setInterval(this.fetch_latest, 6000);

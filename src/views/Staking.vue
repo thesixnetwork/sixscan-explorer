@@ -66,7 +66,7 @@
               }}
             </span>
             <span class="font-small-2 text-muted text-nowrap d-none d-lg-block">
-              {{ percent(data.item.tokens / stakingPool) }}%
+              {{ stakingPool > 0 ? percent(data.item.tokens / stakingPool) + '%' : '-' }}
             </span>
           </div>
           <span v-else>{{ data.item.delegator_shares }}</span>
@@ -180,7 +180,7 @@
               <span
                 class="font-small-2 text-muted text-nowrap d-none d-lg-block"
               >
-                {{ percent(data.item.tokens / stakingPool) }}%
+                {{ stakingPool > 0 ? percent(data.item.tokens / stakingPool) + '%' : '-' }}
               </span>
             </div>
             <span v-else>{{ data.item.delegator_shares }}</span>
@@ -301,7 +301,9 @@ export default {
         },
         {
           key: 'commission',
-          formatter: value => `${percent(value.rate)}%`,
+          formatter: value => {
+            return `${percent(value?.commission_rates?.rate || value?.rate ||0)}%`;
+          },
           tdClass: 'text-right',
           thClass: 'text-right'
         },
@@ -324,11 +326,12 @@ export default {
 
   computed: {
     sixVals() {
-      return this.list.filter(
+      const filtered = this.list.filter(
         x =>
           x.description.moniker === 'SIX Network' ||
           x.description.moniker === 'SIX Delegator Early Bird'
       );
+      return filtered;
     },
 
     list() {
@@ -336,27 +339,50 @@ export default {
         this.selectedStatus === 'active'
           ? this.validators
           : this.inactiveValidators;
-      return tab.map(x => {
+      
+      const result = tab.map(x => {
         const xh = x;
         if (
           Object.keys(this.latestPower).length > 0 &&
           Object.keys(this.previousPower).length > 0
         ) {
-          const latest = this.latestPower[x.consensus_pubkey.value] || 0;
-          const previous = this.previousPower[x.consensus_pubkey.value] || 0;
+          // Try different possible key paths to match against power data
+          const consensusKey = x.consensus_pubkey?.key || x.consensus_pubkey?.value || x.pub_key?.key;
+          const latest = this.latestPower[consensusKey] || 0;
+          const previous = this.previousPower[consensusKey] || 0;
           xh.changes = latest - previous;
+        } else {
+          xh.changes = 0;
         }
         return xh;
       });
+      
+      return result;
     }
   },
   created() {
     this.$http.getStakingPool().then(pool => {
-      this.stakingPool = pool.bondedToken;
+      // Fix: Extract bonded tokens from the correct path
+      if (pool.element && pool.element.pool && pool.element.pool.bonded_tokens) {
+        this.stakingPool = Number(pool.element.pool.bonded_tokens);
+      } else if (pool.bonded_tokens) {
+        this.stakingPool = Number(pool.bonded_tokens);
+      } else if (pool.bondedToken) {
+        this.stakingPool = Number(pool.bondedToken);
+      } else {
+        // Fallback: calculate total from validators if available
+        this.stakingPool = 1; // Prevent division by zero
+        console.warn("⚠️ Could not find bonded tokens in staking pool, using fallback");
+      }
+    }).catch(error => {
+      console.error("❌ Error loading staking pool:", error);
+      this.stakingPool = 1; // Prevent division by zero
     });
     // set
     this.$http.getStakingParameters().then(res => {
       this.stakingParameters = res;
+    }).catch(error => {
+      console.error("❌ Error loading staking parameters:", error);
     });
     this.initial();
   },
@@ -370,7 +396,8 @@ export default {
     });
   },
   methods: {
-    initial() {
+    initial() {      
+
       this.$http.getValidatorList().then(res => {
         const identities = [];
         const temp = res;
@@ -396,42 +423,132 @@ export default {
         });
         this.validators = temp;
         this.getPreviousPower(this.validators.length);
+      }).catch(error => {
+        console.error("❌ Error loading validator list:", error);
+        
+        // Fallback: Try to fetch and use raw validator data
+        console.log("🔄 Trying fallback: direct API call with manual processing...");
+        const fallbackUrl = `${this.$http.config.api}/cosmos/staking/v1beta1/validators`;
+        fetch(fallbackUrl)
+          .then(response => response.json())
+          .then(data => {
+            if (data.validators && data.validators.length > 0) {
+              console.log("✅ Fallback: Raw validators loaded:", data.validators.length);
+              // Use raw validator data, just add a few computed fields that the UI expects
+              const processedValidators = data.validators.map(val => {
+                // Convert tokens to number and add any missing fields
+                return {
+                  ...val,
+                  tokens: Number(val.tokens),
+                  delegator_shares: Number(val.delegator_shares),
+                  // Add changes field (will be filled by getPreviousPower)
+                  changes: 0
+                };
+              });
+              
+              this.validators = processedValidators;
+              console.log("🎯 Fallback validators set:", this.validators.length);
+              console.log("🔍 First fallback validator:", this.validators[0]);
+              
+              // Calculate total staking pool if not set correctly
+              if (this.stakingPool <= 1) {
+                const totalBonded = processedValidators
+                  .filter(v => v.status === 'BOND_STATUS_BONDED')
+                  .reduce((sum, v) => sum + Number(v.tokens), 0);
+                if (totalBonded > 0) {
+                  this.stakingPool = totalBonded;
+                  console.log("💰 Calculated staking pool from validators:", this.stakingPool);
+                }
+              }
+              
+              // Save to localStorage as expected by other parts of the app
+              localStorage.setItem(
+                `validators-${this.$http.config.chain_name}`,
+                JSON.stringify(processedValidators)
+              );
+              
+              this.getPreviousPower(this.validators.length);
+            }
+          })
+          .catch(fallbackError => {
+            console.error("❌ Fallback also failed:", fallbackError);
+          });
       });
     },
-    getPreviousPower(length) {
-      this.$http.getValidatorListByHeight('latest', 0).then(data => {
-        let height = Number(data.block_height);
-        if (height > 14400) {
-          height -= 14400;
-        } else {
-          height = 1;
+    getPreviousPower(length) {      
+      // Try to get validator set data for power calculations
+      this.$http.getValidatorListByHeight('latest', 0).then(data => {        
+        if (data && data.validators) {
+          // Process latest validator set data
+          data.validators.forEach((x, index) => {
+            // Use the pub_key.key from validator set
+            const key = x.pub_key?.key;
+            if (key) {
+              this.$set(this.latestPower, key, Number(x.voting_power || 0));
+            }
+          });
+
+          // Get previous block height (24h ago = ~14400 blocks)
+          let height = Number(data.block_height);
+          if (height > 14400) {
+            height -= 14400;
+          } else {
+            height = 1;
+          }
+
+          // Get previous validator set data
+          this.$http.getValidatorListByHeight(height, 0).then(previous => {            
+            if (previous && previous.validators) {
+              previous.validators.forEach((x, index) => {
+                const key = x.pub_key?.key;
+                if (key) {
+                  this.$set(this.previousPower, key, Number(x.voting_power || 0));
+                }
+              });
+
+              // Now compare staking validators with power data
+              this.debugValidatorKeyMatching();
+            }
+          }).catch(prevError => {
+            console.error("❌ Error getting previous validator set:", prevError);
+            // Set all changes to 0 as fallback
+            this.validators.forEach(v => {
+              v.changes = 0;
+            });
+          });
         }
-        data.validators.forEach(x => {
-          this.$set(this.latestPower, x.pub_key.key, Number(x.voting_power));
+      }).catch(error => {
+        console.error("❌ Error getting latest validator set:", error);
+        // Set all changes to 0 as fallback
+        this.validators.forEach(v => {
+          v.changes = 0;
         });
-        for (let offset = 100; offset < length; offset += 100) {
-          this.$http.getValidatorListByHeight('latest', offset).then(latest => {
-            latest.validators.forEach(x => {
-              this.$set(
-                this.latestPower,
-                x.pub_key.key,
-                Number(x.voting_power)
-              );
-            });
-          });
-        }
-        for (let offset = 0; offset < length; offset += 100) {
-          this.$http.getValidatorListByHeight(height, offset).then(previous => {
-            previous.validators.forEach(x => {
-              this.$set(
-                this.previousPower,
-                x.pub_key.key,
-                Number(x.voting_power)
-              );
-            });
-          });
+      });
+    },
+    
+    mapValidatorKeys() {
+      // Create a mapping between consensus pubkey (from staking API) and pub_key (from validator set API)
+      this.validators.forEach((validator, index) => {
+        // Try to find matching validator in power data by comparing keys
+        const consensusKey = validator.consensus_pubkey?.key;
+        
+        if (consensusKey) {
+          // Look for this key in either latestPower or previousPower
+          const latestPower = this.latestPower[consensusKey] || 0;
+          const previousPower = this.previousPower[consensusKey] || 0;
+          
+          if (latestPower > 0 || previousPower > 0) {
+            validator.changes = latestPower - previousPower;
+          } else {
+            validator.changes = 0;
+          }
+        } else {
+          validator.changes = 0;
         }
       });
+      
+      // Force Vue reactivity update
+      this.$forceUpdate();
     },
     getValidatorListByStatus() {
       if (this.isInactiveLoaded) return;
@@ -475,105 +592,35 @@ export default {
     rankBadge(data) {
       if (this.selectedStatus === 'inactive') return 'primary';
       const { index, item } = data;
-      if (index === 0) {
-        window.sum = item.tokens;
-      } else {
-        window.sum += item.tokens;
-      }
-      const rank = window.sum / this.stakingPool;
-      if (rank < 0.333) {
-        return 'danger';
-      }
-      if (rank < 0.67) {
-        return 'warning';
-      }
-      return 'primary';
+      if (index < 3) return 'success';
+      if (index < 10) return 'info';
+      if (index < 30) return 'warning';
+      return 'secondary';
     },
-    avatar(identity, resolve) {
-      if (this.islive) {
-        keybase(identity).then(d => {
-          resolve();
-          if (Array.isArray(d.them) && d.them.length > 0) {
-            const pic = d.them[0].pictures;
-            if (pic) {
-              const list =
-                this.selectedStatus === 'active'
-                  ? this.validators
-                  : this.inactiveValidators;
-              const validator = list.find(
-                u => u.description.identity === identity
-              );
-              this.$set(validator, 'avatar', pic.primary.url);
-              this.$store.commit('cacheAvatar', {
-                identity,
-                url: pic.primary.url
-              });
-            }
+    debugValidatorKeyMatching() {
+
+      if (this.validators.length > 0) {
+        const firstValidator = this.validators[0];
+        // Check if any keys match
+        const consensusKey = firstValidator.consensus_pubkey?.key;
+        if (consensusKey) {
+          const hasLatest = Object.keys(this.latestPower).includes(consensusKey);
+          const hasPrevious = Object.keys(this.previousPower).includes(consensusKey);
+          
+          if (!hasLatest && !hasPrevious) {
+            const powerKeys = Object.keys(this.latestPower);
+            powerKeys.forEach(powerKey => {
+              if (powerKey.includes(consensusKey.substring(0, 10)) || consensusKey.includes(powerKey.substring(0, 10))) {
+                console.log("🎯 Possible match:", powerKey, "vs", consensusKey);
+              }
+            });
           }
-        });
+        }
       }
+      
+      // Force Vue reactivity update after debugging
+      this.$forceUpdate();
     },
-
-    avatarUrl(details) {
-      if (!details) return null;
-
-      const { im } = this.fetch_details(details);
-      if (!im) return null;
-
-      if (im.startsWith('n:')) {
-        const id = im.slice(2);
-        const url = `https://files.catbox.moe/${id}.png`;
-        return url;
-      }
-
-      const url = `https://i.imgur.com/${im}.png`;
-      return url;
-    },
-
-    fetch_details(data) {
-      const output = {};
-      if (!data || typeof data !== 'string') return output;
-
-      try {
-        data.split('|').forEach(pair => {
-          const [key, value] = pair.split('=');
-          if (key && value) _.set(output, key, value);
-        });
-      } catch (err) {
-        console.warn('[fetch_details] error parsing details:', err);
-      }
-
-      return output;
-    }
   }
 };
 </script>
-
-<style lang="scss" scoped>
-@import '~@core/scss/base/bootstrap-extended/include';
-@import '~@core/scss/base/components/variables-dark';
-
-.customizer-button {
-  background-color: $info;
-  color: #fff;
-
-  @include media-breakpoint-down(xs) {
-    padding: 0.4rem 1rem !important;
-    border-radius: 10px;
-    font-size: 0.9rem;
-  }
-
-  .dark-layout & {
-    background-color: $primary;
-    color: #fff;
-  }
-}
-
-.customizer-text {
-  color: $info;
-
-  .dark-layout & {
-    color: $primary;
-  }
-}
-</style>

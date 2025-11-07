@@ -289,14 +289,18 @@ export function getUserCurrencySign() {
 export function consensusPubkeyToHexAddress(consensusPubkey) {
   let raw = null;
   if (typeof consensusPubkey === 'object') {
-    if (consensusPubkey.type === 'tendermint/PubKeySecp256k1') {
+    // Handle both old and new consensus pubkey formats
+    const pubkeyType = consensusPubkey.type || consensusPubkey['@type'];
+    const pubkeyValue = consensusPubkey.value || consensusPubkey.key;
+    
+    if (pubkeyType === 'tendermint/PubKeySecp256k1') {
       raw = new RIPEMD160()
-        .update(Buffer.from(sha256(fromBase64(consensusPubkey.value))))
+        .update(Buffer.from(sha256(fromBase64(pubkeyValue))))
         .digest('hex')
         .toUpperCase();
       return raw;
     }
-    raw = sha256(fromBase64(consensusPubkey.value));
+    raw = sha256(fromBase64(pubkeyValue));
   } else {
     raw = sha256(
       fromHex(
@@ -708,6 +712,138 @@ export function getStakingValidatorOperator(chainName, addr, length = -1) {
     return addr.substring(addr.length - length);
   }
   return addr;
+}
+
+// Base64/Hex conversion utilities
+export function base64ToHex(base64String) {
+  if (!base64String) return '';
+  try {
+    // Convert base64 to binary string
+    const binaryString = atob(base64String);
+    // Convert binary string to hex
+    let hex = '';
+    for (let i = 0; i < binaryString.length; i++) {
+      const byte = binaryString.charCodeAt(i);
+      hex += byte.toString(16).padStart(2, '0');
+    }
+    return hex.toUpperCase();
+  } catch (error) {
+    console.warn('Error converting base64 to hex:', base64String, error);
+    return base64String; // Return original if conversion fails
+  }
+}
+
+export function base64ToBech32Address(base64String, chainId = '') {
+  if (!base64String) return '';
+  try {
+    // Convert base64 to bytes
+    const binaryString = atob(base64String);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Get chain prefix for validator consensus addresses
+    let prefix = 'sixvalcons'; // default for SIX Protocol
+    
+    // Map chain IDs to their validator consensus prefixes
+    if (chainId.includes('cosmoshub')) {
+      prefix = 'cosmosvalcons';
+    } else if (chainId.includes('osmosis')) {
+      prefix = 'osmovalcons';
+    } else if (chainId.includes('juno')) {
+      prefix = 'junovalcons';
+    } else if (chainId.includes('fivenet') || chainId.includes('six')) {
+      prefix = 'sixvalcons';
+    }
+    // Add more chain mappings as needed
+    
+    // Encode as Bech32
+    return Bech32.encode(prefix, bytes);
+  } catch (error) {
+    console.warn('Error converting base64 to Bech32:', base64String, error);
+    // Fallback to hex format
+    return base64ToHex(base64String);
+  }
+}
+
+export function consensusPubkeyToBech32(consensusPubkey, chainId = '') {
+  // Convert consensus pubkey to Bech32 consensus address
+  if (consensusPubkey && (consensusPubkey.value || consensusPubkey.key)) {
+    try {
+      const pubkeyValue = consensusPubkey.value || consensusPubkey.key;
+      const keyBytes = atob(pubkeyValue);
+      const bytes = new Uint8Array(keyBytes.length);
+      for (let i = 0; i < keyBytes.length; i++) {
+        bytes[i] = keyBytes.charCodeAt(i);
+      }
+      
+      // Get chain prefix
+      let prefix = 'sixvalcons';
+      
+      if (chainId.includes('cosmoshub')) {
+        prefix = 'cosmosvalcons';
+      } else if (chainId.includes('osmosis')) {
+        prefix = 'osmovalcons';
+      } else if (chainId.includes('juno')) {
+        prefix = 'junovalcons';
+      } else if (chainId.includes('fivenet') || chainId.includes('six')) {
+        prefix = 'sixvalcons';
+      }
+      
+      return Bech32.encode(prefix, bytes);
+    } catch (error) {
+      console.warn('Error converting consensus pubkey to Bech32:', error);
+    }
+  }
+  return null;
+}
+
+export function getConsensusAddressFromValidator(validator, chainId = '') {
+  // Try to get consensus address from validator
+  if (validator.consensus_pubkey) {
+    try {
+      // Convert consensus pubkey to Bech32 consensus address
+      return consensusPubkeyToBech32(validator.consensus_pubkey, chainId);
+    } catch (error) {
+      console.warn('Error converting validator consensus pubkey:', error);
+    }
+  }
+  return null;
+}
+
+export function formatValidatorAddress(bech32Address, chainName = '', validators = null) {
+  if (!bech32Address) return 'Unknown';
+  try {
+    // Use provided validators or get from localStorage
+    const validatorsData = validators || localStorage.getItem(`validators-${chainName}`);
+    if (!validatorsData) {
+      // Validators not loaded yet, return abbreviated Bech32 address
+      return bech32Address.length > 12 ? `${bech32Address.substring(0, 12)}...${bech32Address.substring(bech32Address.length - 8)}` : bech32Address;
+    }
+    
+    // Try to find validator by matching consensus addresses
+    const validatorList = typeof validatorsData === 'string' ? JSON.parse(validatorsData) : validatorsData;
+    const validator = validatorList.find(val => {
+      try {
+        // Try to match the consensus address
+        return getConsensusAddressFromValidator(val, chainName) === bech32Address;
+      } catch (err) {
+        return false;
+      }
+    });
+    
+    if (validator) {
+      return validator.description?.moniker || 'Unknown Validator';
+    }
+    
+    // Fallback to abbreviated Bech32 address
+    return bech32Address.length > 12 ? `${bech32Address.substring(0, 12)}...${bech32Address.substring(bech32Address.length - 8)}` : bech32Address;
+  } catch (error) {
+    console.warn('Error formatting validator address:', bech32Address, error);
+    // Return abbreviated address as fallback
+    return bech32Address.length > 12 ? `${bech32Address.substring(0, 12)}...${bech32Address.substring(bech32Address.length - 8)}` : bech32Address;
+  }
 }
 
 export * from 'compare-versions';

@@ -5,7 +5,7 @@
         Commission
       </h4>
       <b-card-text class="font-small-2 mb-0">
-        Updated on: {{ dateFormat(data.update_time) }}
+        Updated on: {{ dateFormat(data.update_time || (new Date()).toISOString()) }}
       </b-card-text>
     </b-card-header>
 
@@ -15,7 +15,7 @@
       height="160"
       class="my-2"
       :options="goalOverviewRadialBar"
-      :series="[percentFormat(data.rate)]"
+      :series="[percentFormat(data.commission_rates ? data.commission_rates.rate : data.rate)]"
     />
     <b-row class="text-center mx-0">
       <b-col
@@ -26,7 +26,7 @@
           Max Rate
         </b-card-text>
         <h3 class="font-weight-bolder mb-0">
-          {{ percentFormat(data.max_rate) }}%
+          {{ percentFormat(data.commission_rates ? data.commission_rates.max_rate : data.max_rate) }}%
         </h3>
       </b-col>
 
@@ -38,7 +38,7 @@
           Max Change Rate
         </b-card-text>
         <h3 class="font-weight-bolder mb-0">
-          {{ percentFormat(data.max_change_rate) }}%
+          {{ percentFormat(data.commission_rates ? data.commission_rates.max_change_rate : data.max_change_rate) }}%
         </h3>
       </b-col>
     </b-row>
