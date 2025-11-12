@@ -1112,7 +1112,20 @@ export default {
       
       const communityTaxValue = this.communityTax.params?.community_tax || this.communityTax.community_tax;
       const communityTaxRate = Number(communityTaxValue || 0);
-      const validatorRate = Number(rate || 0);
+      
+      // Handle string rates that might need to be converted from string decimals
+      let validatorRate = 0;
+      if (typeof rate === 'string' && rate.includes('.')) {
+        validatorRate = parseFloat(rate);
+      } else {
+        validatorRate = Number(rate || 0);
+      }
+      
+      // Special handling for 100% commission validators
+      if (validatorRate >= 1.0) {
+        
+        return '0.00 % (100% Commission)';
+      }
       
       // Calculate the ratio of provision to staked tokens
       const provisionRatio = provision / allStakedToken;
@@ -1120,7 +1133,7 @@ export default {
       const annualProfit =
         provisionRatio *
         (1 - communityTaxRate) *
-        (1 - validatorRate) || 0;
+        (1 - validatorRate);
         
       // Check for invalid results or unreasonable values
       if (!isFinite(annualProfit) || isNaN(annualProfit)) {

@@ -79,18 +79,6 @@
           <small v-else-if="data.item.changes === 0">-</small>
           <small v-else class="text-danger">{{ data.item.changes }}</small>
         </template>
-        <!-- <template #cell(operation)="data">
-          <b-button
-            v-b-modal.operation-modal
-            :name="data.item.operator_address"
-            variant="link"
-            class="customizer-button"
-            size="sm"
-            @click="selectValidator(data.item.operator_address)"
-          >
-            Delegate
-          </b-button>
-        </template> -->
       </b-table>
     </b-card>
     <b-card no-body class="overflow-auto">
@@ -193,18 +181,6 @@
             <small v-else-if="data.item.changes === 0">-</small>
             <small v-else class="text-danger">{{ data.item.changes }}</small>
           </template>
-          <!-- <template #cell(operation)="data">
-            <b-button
-              v-b-modal.operation-modal
-              :name="data.item.operator_address"
-              variant="link"
-              class="customizer-button"
-              size="sm"
-              @click="selectValidator(data.item.operator_address)"
-            >
-              Delegate
-            </b-button>
-          </template> -->
         </b-table>
       </b-card-body>
       <b-card-footer class="d-none d-md-block">
@@ -237,16 +213,12 @@ import {
   VBTooltip,
   BCardBody,
   BCardFooter,
-  // BButton,
   BFormRadioGroup,
   BFormGroup
 } from 'bootstrap-vue';
 import { percent, StakingParameters, formatToken } from '@/libs/utils';
 import { keybase } from '@/libs/fetch';
-import _ from 'lodash';
 import OperationModal from '@/views/components/OperationModal/index.vue';
-// import { toHex } from '@cosmjs/encoding'
-// import fetch from 'node-fetch'
 
 export default {
   components: {
@@ -259,7 +231,6 @@ export default {
     BCardTitle,
     BCardBody,
     BCardFooter,
-    // BButton,
     BFormRadioGroup,
     BFormGroup,
     OperationModal
@@ -275,8 +246,6 @@ export default {
       stakingPool: 1,
       stakingParameters: new StakingParameters(),
       validators: [],
-      delegations: [],
-      changes: {},
       latestPower: {},
       previousPower: {},
       validator_fields: [
@@ -335,10 +304,15 @@ export default {
     },
 
     list() {
-      const tab =
+      let tab =
         this.selectedStatus === 'active'
           ? this.validators
           : this.inactiveValidators;
+      
+      // Filter out unbonded validators from active list
+      if (this.selectedStatus === 'active') {
+        tab = tab.filter(x => x.status !== 'BOND_STATUS_UNBONDED');
+      }
       
       const result = tab.map(x => {
         const xh = x;
@@ -425,15 +399,11 @@ export default {
         this.getPreviousPower(this.validators.length);
       }).catch(error => {
         console.error("❌ Error loading validator list:", error);
-        
-        // Fallback: Try to fetch and use raw validator data
-        console.log("🔄 Trying fallback: direct API call with manual processing...");
         const fallbackUrl = `${this.$http.config.api}/cosmos/staking/v1beta1/validators`;
         fetch(fallbackUrl)
           .then(response => response.json())
           .then(data => {
             if (data.validators && data.validators.length > 0) {
-              console.log("✅ Fallback: Raw validators loaded:", data.validators.length);
               // Use raw validator data, just add a few computed fields that the UI expects
               const processedValidators = data.validators.map(val => {
                 // Convert tokens to number and add any missing fields
@@ -447,8 +417,6 @@ export default {
               });
               
               this.validators = processedValidators;
-              console.log("🎯 Fallback validators set:", this.validators.length);
-              console.log("🔍 First fallback validator:", this.validators[0]);
               
               // Calculate total staking pool if not set correctly
               if (this.stakingPool <= 1) {
@@ -457,7 +425,6 @@ export default {
                   .reduce((sum, v) => sum + Number(v.tokens), 0);
                 if (totalBonded > 0) {
                   this.stakingPool = totalBonded;
-                  console.log("💰 Calculated staking pool from validators:", this.stakingPool);
                 }
               }
               
@@ -526,30 +493,6 @@ export default {
       });
     },
     
-    mapValidatorKeys() {
-      // Create a mapping between consensus pubkey (from staking API) and pub_key (from validator set API)
-      this.validators.forEach((validator, index) => {
-        // Try to find matching validator in power data by comparing keys
-        const consensusKey = validator.consensus_pubkey?.key;
-        
-        if (consensusKey) {
-          // Look for this key in either latestPower or previousPower
-          const latestPower = this.latestPower[consensusKey] || 0;
-          const previousPower = this.previousPower[consensusKey] || 0;
-          
-          if (latestPower > 0 || previousPower > 0) {
-            validator.changes = latestPower - previousPower;
-          } else {
-            validator.changes = 0;
-          }
-        } else {
-          validator.changes = 0;
-        }
-      });
-      
-      // Force Vue reactivity update
-      this.$forceUpdate();
-    },
     getValidatorListByStatus() {
       if (this.isInactiveLoaded) return;
       const statusList = ['BOND_STATUS_UNBONDED', 'BOND_STATUS_UNBONDING'];
@@ -598,29 +541,43 @@ export default {
       return 'secondary';
     },
     debugValidatorKeyMatching() {
-
-      if (this.validators.length > 0) {
-        const firstValidator = this.validators[0];
-        // Check if any keys match
-        const consensusKey = firstValidator.consensus_pubkey?.key;
-        if (consensusKey) {
-          const hasLatest = Object.keys(this.latestPower).includes(consensusKey);
-          const hasPrevious = Object.keys(this.previousPower).includes(consensusKey);
-          
-          if (!hasLatest && !hasPrevious) {
-            const powerKeys = Object.keys(this.latestPower);
-            powerKeys.forEach(powerKey => {
-              if (powerKey.includes(consensusKey.substring(0, 10)) || consensusKey.includes(powerKey.substring(0, 10))) {
-                console.log("🎯 Possible match:", powerKey, "vs", consensusKey);
-              }
-            });
+      // Force Vue reactivity update
+      this.$forceUpdate();
+    },
+    
+    avatar(identity, resolve) {
+      keybase(identity).then(d => {
+        if (Array.isArray(d.them) && d.them.length > 0) {
+          this.$store.commit('chains/cacheAvatar', {
+            identity,
+            url: d.them[0].pictures.primary.url
+          });
+        }
+        resolve();
+      }).catch(() => {
+        resolve(); // Always resolve to prevent hanging promises
+      });
+    },
+    
+    avatarUrl(details) {
+      if (!details) return null;
+      
+      // Check if details contains image reference
+      const parts = details.split('|');
+      for (const part of parts) {
+        if (part.includes('im=')) {
+          const im = part.split('=')[1];
+          if (im) {
+            if (im.startsWith('n:')) {
+              const id = im.slice(2);
+              return `https://files.catbox.moe/${id}.png`;
+            }
+            return `https://i.imgur.com/${im}.png`;
           }
         }
       }
-      
-      // Force Vue reactivity update after debugging
-      this.$forceUpdate();
-    },
+      return null;
+    }
   }
 };
 </script>

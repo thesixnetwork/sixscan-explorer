@@ -124,15 +124,20 @@ export default {
   },
   computed: {
     uptime() {
-      const vals = this.query
+      let vals = this.query
         ? this.validators.filter(
             x => String(x.description.moniker).indexOf(this.query) > -1
           )
         : this.validators;
+      
+      // Filter out validators with BOND_STATUS_UNBONDED status
+      vals = vals.filter(x => x.status !== 'BOND_STATUS_UNBONDED');
+      
       vals.sort((a, b) => b.delegator_shares - a.delegator_shares);
       return vals.map(x => ({
         validator: x.description,
-        address: consensusPubkeyToHexAddress(x.consensus_pubkey)
+        address: consensusPubkeyToHexAddress(x.consensus_pubkey),
+        status:x.status,
       }));
     }
   },
