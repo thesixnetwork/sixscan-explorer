@@ -22,7 +22,7 @@
           </router-link>
         </template>
         <template #cell(hash)="data">
-          <small>{{ data.item.block_id.hash }}</small>
+          <small>{{ formatHex(data.item.block_id.hash) }}</small>
         </template>
         <template #cell(time)="data">
           {{ formatTime(data.item.block.header.time) }}
@@ -49,7 +49,10 @@ import {
 import {
   getCachedValidators,
   getStakingValidatorByHex,
-  toDay
+  toDay,
+  formatValidatorAddress,
+  base64ToBech32Address,
+  base64ToHex
 } from '@/libs/utils';
 
 export default {
@@ -65,6 +68,7 @@ export default {
   data() {
     return {
       islive: true,
+      validators: [],
       blocks: [],
       list_fields: [
         {
@@ -91,17 +95,29 @@ export default {
       ]
     };
   },
+  computed: {
+    blocksCount() {
+      return this.blocks.length;
+    }
+  },
   created() {
+    // Load validators first
+    const cached = getCachedValidators(this.$http.config.chain_name);
+    if (cached) {
+      this.validators = JSON.parse(cached);
+    }
+    
+    this.$http.getValidatorList().then(res => {
+      this.validators = res;
+    });
+
+    // Then load blocks
     this.$http.getLatestBlock().then(res => {
       this.blocks.push(res);
       const list = [];
       const { height } = res.block.header;
       for (let i = 1; i < 20; i += 1) {
         list.push(height - i);
-      }
-
-      if (!getCachedValidators()) {
-        this.$http.getValidatorList();
       }
 
       let promise = Promise.resolve();
@@ -126,15 +142,26 @@ export default {
   methods: {
     length: v => (Array.isArray(v) ? v.length : 0),
     formatTime: v => toDay(v, 'time'),
-    formatProposer(v) {
-      return getStakingValidatorByHex(this.$http.config.chain_name, v);
+    formatProposer(base64Address) {
+      // Convert base64 proposer address to hex
+      const hexAddress = base64ToHex(base64Address);
+      
+      // Use the existing utility to get validator by hex address
+      const validatorMoniker = getStakingValidatorByHex(this.$http.config.chain_name, hexAddress);
+      
+      return validatorMoniker;
+    },
+    formatHex(base64Str) {
+      return base64ToHex(base64Str || "");
     },
     fetch() {
       this.$http.getLatestBlock().then(b => {
         const has = this.blocks.findIndex(
           x => x.block.header.height === b.block.header.height
         );
-        if (has < 0) this.blocks.unshift(b);
+        if (has < 0) {
+          this.blocks.unshift(b);
+        }
         if (this.blocks.length > 200) this.blocks.pop();
       });
     }

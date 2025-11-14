@@ -1,6 +1,6 @@
 <template>
   <b-table-simple
-    v-if="typeof tablefield === 'object'"
+    v-if="typeof tablefield === 'object' && tablefield !== null && Object.keys(tablefield || {}).length > 0"
     hover
     :small="small"
     striped

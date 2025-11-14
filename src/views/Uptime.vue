@@ -146,8 +146,10 @@ export default {
 
     if (cached) {
       this.validators = cached;
+      console.log('Using cached validators:', cached);
     }
     this.$http.getValidatorList().then(res => {
+      console.log('Validator list fetched:', res);
       this.validators = res;
     });
     this.initBlocks();

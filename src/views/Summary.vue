@@ -120,6 +120,7 @@ export default {
       syncing: false,
       latestTime: '',
       marketData: null,
+      validators: [],
       chain: {
         title: '',
         class: 'customizer-border',
@@ -215,7 +216,7 @@ export default {
           height: block.block?.header?.height || 0,
           hash: base64ToHex(block.block_id?.hash || ''),
           time: block.block?.header?.time || '',
-          proposer_address: base64ToBech32Address(block.block?.header?.proposer_address || '', this.chain.title),
+          proposer_address: block.block?.header?.proposer_address || '',
           // Keep original block reference for navigation
           originalBlock: block
         };
@@ -233,6 +234,19 @@ export default {
     }
   },
   created() {
+    // Load validators first
+    const cached = getCachedValidators(this.$http.config.chain_name);
+    if (cached) {
+      this.validators = JSON.parse(cached);
+      console.log('Using cached validators:', this.validators);
+    }
+    
+    this.$http.getValidatorList().then(res => {
+      console.log('Validator list fetched:', res);
+      this.validators = res;
+    });
+
+    // Then load blocks and other data
     this.$http.getLatestBlock().then(res => {
       this.blocks.push(res);
       const list = [];
@@ -417,8 +431,14 @@ export default {
     },
     length: v => (Array.isArray(v) ? v.length : 0),
     formatTime: v => toDay(v, 'time'),
-    formatProposer(bech32Address) {
-      return formatValidatorAddress(bech32Address, this.$http.config.chain_name);
+    formatProposer(base64Address) {
+      // Convert base64 proposer address to hex
+      const hexAddress = base64ToHex(base64Address);
+      
+      // Use the existing utility to get validator by hex address
+      const validatorMoniker = getStakingValidatorByHex(this.$http.config.chain_name, hexAddress);
+      
+      return validatorMoniker;
     },
     fetch() {
       this.$http.getLatestBlock().then(b => {
