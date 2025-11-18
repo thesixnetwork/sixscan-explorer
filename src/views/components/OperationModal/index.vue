@@ -296,10 +296,10 @@ export default {
     accounts() {
       const accounts = getLocalAccounts();
       const selectedWallet = this.$store.state.chains.defaultWallet;
-      return accounts[selectedWallet];
+      return accounts && selectedWallet ? accounts[selectedWallet] : null;
     },
     isOwner() {
-      if (this.accounts) {
+      if (this.accounts && this.accounts.address) {
         this.updateWallet(this.accounts.device);
         if (
           this.accounts.address.findIndex(
@@ -316,10 +316,13 @@ export default {
         return this.address;
       }
       const chain = this.$store.state.chains.selected.chain_name;
-      const selectedAddress = this.accounts.address.find(
-        x => x.chain === chain
-      );
-      return selectedAddress?.addr;
+      if (this.accounts && this.accounts.address) {
+        const selectedAddress = this.accounts.address.find(
+          x => x.chain === chain
+        );
+        return selectedAddress?.addr;
+      }
+      return '';
     },
     selectedChain() {
       let config = null;

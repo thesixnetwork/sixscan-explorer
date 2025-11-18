@@ -39,20 +39,20 @@
             class="d-flex justify-content-between align-self-stretch flex-wrap c-mt-2"
           >
             <div v-for="(b, i) in blocks" :key="i" style="width:1.5%;">
-              <router-link :to="`./blocks/${b.height}`">
-                <div
-                  v-b-tooltip.hover.v-second
-                  :title="b.height"
-                  :class="
-                    b.sigs && b.sigs[x.address]
-                      ? b.sigs[x.address]
-                      : 'bg-light-success'
-                  "
-                  class="m-auto"
-                >
-                  &nbsp;
-                </div>
-              </router-link>
+              <div
+                v-b-tooltip.hover.v-second
+                :title="`Block ${b.height}`"
+                :class="
+                  b.sigs && b.sigs[x.address]
+                    ? b.sigs[x.address]
+                    : 'bg-danger'
+                "
+                class="m-auto block-indicator"
+                style="height: 20px; min-height: 20px; border-radius: 2px; cursor: pointer;"
+                @click="$router.push(`./blocks/${b.height}`)"
+              >
+                <span style="opacity: 0;">&nbsp;</span>
+              </div>
             </div>
           </div>
         </b-col>
@@ -72,7 +72,7 @@ import {
   BFormCheckbox
 } from 'bootstrap-vue';
 
-import { getLocalChains, timeIn, toDay } from '@/libs/utils';
+import { getLocalChains, timeIn, toDay, base64ToHex } from '@/libs/utils';
 
 export default {
   name: 'Blocks',
@@ -160,7 +160,11 @@ export default {
 
         const sigs = this.initColor();
         d.block.last_commit.signatures.forEach(x => {
-          if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+          if (x.validator_address) {
+            // Convert base64 validator_address to hex to match validator address format
+            const hexAddress = base64ToHex(x.validator_address);
+            sigs[hexAddress] = 'bg-success';          
+          }
         });
         blocks.push({ sigs, height });
         this.blocks = blocks;
@@ -182,7 +186,11 @@ export default {
           resolve();
           const sigs = this.initColor();
           res.block.last_commit.signatures.forEach(x => {
-            if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+            if (x.validator_address) {
+              // Convert base64 validator_address to hex to match validator address format
+              const hexAddress = base64ToHex(x.validator_address);
+              sigs[hexAddress] = 'bg-success';
+            }
           });
           this.$set(block, 'sigs', sigs);
         });
@@ -192,7 +200,11 @@ export default {
       this.$http.getLatestBlock(this.config).then(res => {
         const sigs = this.initColor();
         res.block.last_commit.signatures.forEach(x => {
-          if (x.validator_address) sigs[x.validator_address] = 'bg-success';
+          if (x.validator_address) {
+            // Convert base64 validator_address to hex to match validator address format
+            const hexAddress = base64ToHex(x.validator_address);
+            sigs[hexAddress] = 'bg-success';
+          }
         });
         this.height = res.block.last_commit.height;
         const block = this.blocks.find(
@@ -210,4 +222,44 @@ export default {
 };
 </script>
 
-<style></style>
+<style scoped>
+.block-indicator {
+  display: block;
+  width: 100%;
+  height: 20px;
+  min-height: 20px;
+  border-radius: 2px;
+  margin: 1px;
+  border: none;
+  text-decoration: none;
+  font-size: 0;
+  line-height: 0;
+}
+
+.block-indicator:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+/* Ensure background colors are applied properly */
+.bg-success {
+  background-color: #28a745 !important;
+  color: transparent !important;
+}
+
+.bg-danger {
+  background-color: #dc3545 !important;
+  color: transparent !important;
+}
+
+.bg-light-success {
+  background-color: #d4edda !important;
+  color: transparent !important;
+}
+
+/* Hide any text content inside blocks */
+.block-indicator span {
+  display: none;
+}
+</style>

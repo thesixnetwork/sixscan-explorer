@@ -212,17 +212,24 @@ export default {
     const { address } = to.params;
     if (address !== from.params.hash) {
       this.address = address;
+      this.isBusy = true;
       this.$http
         .getAuthAccount(this.address)
         .then(acc => {
           this.account = acc;
           this.initial();
           this.$http.getTxsBySender(this.address).then(res => {
-            this.transactions = res;
+            this.transactions = res || { txs: [] };
+            this.isBusy = false;
+          }).catch(err => {
+            console.error('Error fetching transactions:', err);
+            this.transactions = { txs: [] };
+            this.isBusy = false;
           });
         })
         .catch(err => {
           this.error = err;
+          this.isBusy = false;
         });
       next();
     }
@@ -246,7 +253,7 @@ export default {
       stakingParameters: {},
       operationModalType: '',
       error: null,
-      isBusy: false,
+      isBusy: true,
       selected: { name: null, id: null },
       isActive: true,
       selectedIndex: 0, // the index of the selected tab,
@@ -315,8 +322,7 @@ export default {
       return 'Profile';
     },
     txs() {
-      if (this.transactions.txs) {
-        this.isBusy = false;
+      if (this.transactions.txs && this.transactions.txs.length > 0) {
         return this.transactions.txs.map(x => ({
           txhash: x.txhash,
           type:
@@ -373,26 +379,16 @@ export default {
           txnFee: `${formatGasAmount(x.decode_tx.fee_amount) + ' ' + 'SIX'}`,
           time: toDay(x.time_stamp)
         }));
+      } else if (this.transactions && this.transactions.txs && this.transactions.txs.length === 0) {
+        // No transactions found
+        return [];
       } else {
-        this.isBusy = true;
-        return [
-          {
-            txhash: '',
-            type: '',
-            block: '',
-            status: '',
-            from: '',
-            to: '',
-            value: '',
-            commission: '',
-            txnFee: '',
-            time: ''
-          }
-        ];
+        // Still loading
+        return [];
       }
     },
     dataCsv() {
-      if (this.transactions.txs) {
+      if (this.transactions && this.transactions.txs && Array.isArray(this.transactions.txs)) {
         return this.transactions.txs.map(x => ({
           txhash: x.txhash,
           type:
@@ -455,8 +451,12 @@ export default {
       let total = [];
       let sum = 0;
       let sumCurrency = 0;
+      
+      // Ensure assets is an array
+      const assetsArray = Array.isArray(this.assets) ? this.assets : [];
+      
       total = total.concat(
-        this.assets.map(x => {
+        assetsArray.map(x => {
           const xh = x;
           xh.type = 'Balance';
           xh.color = 'success';
@@ -469,7 +469,7 @@ export default {
       );
 
       let stakingDenom = '';
-      if (this.delegations && this.delegations.length > 0) {
+      if (this.delegations && Array.isArray(this.delegations) && this.delegations.length > 0) {
         let temp = 0;
         this.delegations.forEach(x => {
           const xh = x.balance;
@@ -488,7 +488,7 @@ export default {
         });
       }
 
-      if (this.reward.total) {
+      if (this.reward && this.reward.total && Array.isArray(this.reward.total)) {
         total = total.concat(
           this.reward.total.filter(x => {
             const xh = x;
@@ -506,12 +506,15 @@ export default {
           })
         );
       }
-      if (this.unbonding) {
+      
+      if (this.unbonding && Array.isArray(this.unbonding)) {
         let tmp1 = 0;
         this.unbonding.forEach(x => {
-          x.entries.forEach(e => {
-            tmp1 += Number(e.balance);
-          });
+          if (x.entries && Array.isArray(x.entries)) {
+            x.entries.forEach(e => {
+              tmp1 += Number(e.balance);
+            });
+          }
         });
         if (this.stakingParameters)
           stakingDenom = this.stakingParameters.bond_denom;
@@ -531,7 +534,8 @@ export default {
 
       total = total.map(x => {
         const xh = x;
-        xh.percent = percent(Number(x.amount) / sum);
+        // Handle division by zero case
+        xh.percent = sum === 0 ? 0 : percent(Number(x.amount) / sum);
         xh.amount = xh.denom === "asix" ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2) : xh.amount;
         xh.denom = xh.denom === "asix" ? "six (evm)" : xh.denom;
         return xh;
@@ -544,8 +548,11 @@ export default {
     deleTable() {
       const re = [];
       if (
+        this.reward && 
         this.reward.rewards &&
+        Array.isArray(this.reward.rewards) &&
         this.delegations &&
+        Array.isArray(this.delegations) &&
         this.delegations.length > 0
       ) {
         this.delegations.forEach(e => {
@@ -560,7 +567,7 @@ export default {
               8
             ),
             token: formatToken(e.balance, {}, 2),
-            reward: tokenFormatter(reward.reward, this.denoms),
+            reward: reward ? tokenFormatter(reward.reward, this.denoms) : '-',
             action: e.delegation.validator_address
           });
         });
@@ -586,33 +593,54 @@ export default {
   },
   created() {
     this.tabs = this.$children;
+    this.isBusy = true;
     this.$http
       .getAuthAccount(this.address)
       .then(acc => {
         this.account = acc;
         this.initial();
+        this.isBusy = true;
         this.$http.getTxsBySender(this.address).then(res => {
-          this.transactions = res;
+          this.transactions = res || { txs: [] };
+          this.isBusy = false;
+        }).catch(err => {
+          console.error('Error fetching transactions:', err);
+          this.transactions = { txs: [] };
+          this.isBusy = false;
         });
         this.$http.getStakingParameters().then(res => {
           this.stakingParameters = res;
+        }).catch(err => {
+          console.error('Error fetching staking parameters:', err);
+          this.stakingParameters = {};
         });
       })
       .catch(err => {
         this.error = err;
+        this.isBusy = false;
       });
   },
   mounted() {
     const elem = document.getElementById('txevent');
     elem.addEventListener('txcompleted', () => {
       this.initial();
+      // Refresh transactions after completing a transaction
+      this.isBusy = true;
+      this.$http.getTxsBySender(this.address).then(res => {
+        this.transactions = res || { txs: [] };
+        this.isBusy = false;
+      }).catch(err => {
+        console.error('Error refreshing transactions:', err);
+        this.transactions = { txs: [] };
+        this.isBusy = false;
+      });
     });
   },
   methods: {
     initial() {
       this.$http.getBankAccountBalance(this.address).then(bal => {
-        this.assets = bal;
-        bal.forEach(x => {
+        this.assets = Array.isArray(bal) ? bal : [];
+        this.assets.forEach(x => {
           const symbol = formatTokenDenom(x.denom);
           if (!this.quotes[symbol] && symbol.indexOf('/') === -1) {
             chainAPI.fetchTokenQuote(symbol).then(quote => {
@@ -620,51 +648,75 @@ export default {
             });
           }
         });
+      }).catch(err => {
+        console.error('Error fetching account balance:', err);
+        this.assets = [];
       });
+
       this.$http.getBankAccountBalanceToken(this.address).then(bal => {
         let array = [];
-        const filterData = bal.result.filter(x => {
-          // return x.denom === 'usix';
-          return x.denom;
-        });
-        if (filterData.length > 0) {
-          bal.result.map((x, i) => {
-            array.push({
-              name: formatTokenDenom(x.denom),
-              id: x.denom !== "asix" ? this.formatAmount(x.amount) + ' ' + formatTokenDenom(x.denom)
-                : parseFloat(Number(x.amount) / Math.pow(10, 18)).toFixed(2)
-                + ' '
-                + "six (evm)"
-            });
+        if (bal && bal.result && Array.isArray(bal.result)) {
+          const filterData = bal.result.filter(x => {
+            // return x.denom === 'usix';
+            return x.denom;
           });
+          if (filterData.length > 0) {
+            bal.result.map((x, i) => {
+              array.push({
+                name: formatTokenDenom(x.denom),
+                id: x.denom !== "asix" ? this.formatAmount(x.amount) + ' ' + formatTokenDenom(x.denom)
+                  : parseFloat(Number(x.amount) / Math.pow(10, 18)).toFixed(2)
+                  + ' '
+                  + "six (evm)"
+              });
+            });
+          }
         }
         this.options = array;
+      }).catch(err => {
+        console.error('Error fetching token balance:', err);
+        this.options = [];
       });
-      this.$http.getStakingReward(this.address).then(res => {
-        const amount = res.rewards.map(val => {
-          return val.reward;
-        });
-        const validatorAddress = res.rewards.map(val => {
-          return val.validator_address;
-        });
-        const rewards = amount[0];
-        const mapObject = {
-          rewards: [
-            {
-              reward: rewards,
-              validator_address: validatorAddress[0]
-            }
-          ],
-          total: res.total
-        };
 
-        this.reward = mapObject;
+      this.$http.getStakingReward(this.address).then(res => {
+        if (res && res.rewards && Array.isArray(res.rewards)) {
+          const amount = res.rewards.map(val => {
+            return val.reward;
+          });
+          const validatorAddress = res.rewards.map(val => {
+            return val.validator_address;
+          });
+          const rewards = amount[0];
+          const mapObject = {
+            rewards: [
+              {
+                reward: rewards,
+                validator_address: validatorAddress[0]
+              }
+            ],
+            total: res.total || []
+          };
+          this.reward = mapObject;
+        } else {
+          this.reward = { rewards: [], total: [] };
+        }
+      }).catch(err => {
+        console.error('Error fetching staking rewards:', err);
+        this.reward = { rewards: [], total: [] };
       });
+
       this.$http.getStakingDelegations(this.address).then(res => {
-        this.delegations = res.delegation_responses || res;
+        this.delegations = res.delegation_responses || res || [];
+      }).catch(err => {
+        console.error('Error fetching delegations:', err);
+        this.delegations = [];
       });
+
       this.$http.getStakingUnbonding(this.address).then(res => {
-        this.unbonding = res.unbonding_responses || res;
+        this.unbonding = res.unbonding_responses || res || [];
+      }).catch(err => {
+        console.error('Error fetching unbonding:', err);
+        this.unbonding = [];
       });
     },
     validateSelection(selection) {
@@ -674,8 +726,14 @@ export default {
       return numberWithCommas(v);
     },
     pageload(v) {
+      this.isBusy = true;
       this.$http.getTxsBySender(this.address, v).then(res => {
-        this.transactions = res;
+        this.transactions = res || { txs: [] };
+        this.isBusy = false;
+      }).catch(err => {
+        console.error('Error fetching transactions:', err);
+        this.transactions = { txs: [] };
+        this.isBusy = false;
       });
     },
     selectValue(v, type) {
@@ -737,6 +795,11 @@ export default {
       return toETHAddress(this.address);
     },
     csvExport(arrData) {
+      if (!arrData || !Array.isArray(arrData) || arrData.length === 0) {
+        console.warn('No data available for export');
+        return;
+      }
+      
       let csvContent = 'data:text/csv;charset=utf-8,';
       csvContent += [
         Object.keys(arrData[0]).join(','),
