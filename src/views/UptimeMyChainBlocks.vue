@@ -49,7 +49,7 @@
                 "
                 class="m-auto block-indicator"
                 style="height: 20px; min-height: 20px; border-radius: 2px; cursor: pointer;"
-                @click="$router.push(`./blocks/${b.height}`)"
+                @click="navigateToBlock(b.height)"
               >
                 <span style="opacity: 0;">&nbsp;</span>
               </div>
@@ -132,6 +132,16 @@ export default {
   methods: {
     pinValidator() {
       localStorage.setItem('pinned', this.pinned);
+    },
+    navigateToBlock(height) {
+      const path = `/${this.chain}/blocks/${height}`;
+      try {
+        this.$router.push(path);
+      } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback navigation
+        window.location.href = path;
+      }
     },
     initBlocks() {
       this.$http.getLatestBlock(this.config).then(d => {
