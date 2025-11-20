@@ -882,7 +882,6 @@ export default {
 
             
             if (!this.hexAddress || this.hexAddress === '-' || this.hexAddress === 'N/A') {
-              console.warn("⚠️ Invalid hex address, skipping propose count API call");
               this.proposeTransactions = [];
               this.proposeApiLoaded = true; // Mark as loaded so it doesn't show loading state
               return;
@@ -905,14 +904,12 @@ export default {
                 this.proposeApiLoaded = true; // Mark API as loaded
               })
               .catch(error => {
-                console.error("❌ Error loading propose count:", error);
                 this.proposeTransactions = []; // Ensure it's always an array
                 this.proposeApiLoaded = true; // Mark API as loaded even on error
               });
           }
         })
         .catch(error => {
-          console.error("❌ Direct API call failed, falling back to processed data:", error);
           
           // Fallback to the original processed data
           this.$http.getStakingValidator(this.address).then(data => {
@@ -937,7 +934,6 @@ export default {
             });
             this.hexAddress = consensusPubkeyToHexAddress(data.consensus_pubkey);            
             if (!this.hexAddress || this.hexAddress === '-' || this.hexAddress === 'N/A') {
-              console.warn("⚠️ [Fallback] Invalid hex address, skipping propose count API call");
               this.proposeTransactions = [];
               this.proposeApiLoaded = true; // Mark as loaded so it doesn't show loading state
               return;
@@ -959,7 +955,6 @@ export default {
                 this.proposeApiLoaded = true; // Mark API as loaded
               })
               .catch(error => {
-                console.error("❌ [Fallback] Error loading propose count:", error);
                 this.proposeTransactions = []; // Ensure it's always an array
                 this.proposeApiLoaded = true; // Mark API as loaded even on error
               });
@@ -998,7 +993,6 @@ export default {
         };
         this.distribution = mapObject;
       }).catch(error => {
-        console.error("❌ Error loading validator distribution:", error);
         // Set empty distribution object on error
         this.distribution = {
           operator_address: '',
@@ -1041,18 +1035,11 @@ export default {
           return;
         }
       } catch (error) {
-        console.error("❌ Error processing consensus pubkey:", error);
         
         // For now, just skip the hex address conversion and set a placeholder
         // This will allow the rest of the component to work properly
         this.hexAddress = 'N/A';
-        
-        // Log the error details for debugging
-        console.log("  - Error details:", {
-          errorMessage: error.message,
-          consensusPubkey: consensusPubkey,
-          consensusPubkeyType: typeof consensusPubkey
-        });
+
       }
       
       this.$http
@@ -1061,7 +1048,6 @@ export default {
           this.selfDelegation = d;
         })
         .catch(error => {
-          console.error("❌ Error loading self delegation:", error);
           this.selfDelegation = { balance: { amount: 0 } };
         });
     },
@@ -1186,7 +1172,7 @@ export default {
           if (key && value) _.set(output, key, value);
         });
       } catch (err) {
-        console.warn('[fetch_details] error parsing details:', err);
+        // Silently handle parsing errors
       }
 
       return output;

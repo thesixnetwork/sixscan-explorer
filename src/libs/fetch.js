@@ -211,7 +211,6 @@ export default class ChainFetch {
 
       return result;
     }).catch(error => {
-      console.error('❌ Error in getStakingParameters:', error);
       // Return a default object to prevent crashes
       return new StakingParameters();
     });

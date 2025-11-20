@@ -238,11 +238,9 @@ export default {
     const cached = getCachedValidators(this.$http.config.chain_name);
     if (cached) {
       this.validators = JSON.parse(cached);
-      console.log('Using cached validators:', this.validators);
     }
     
     this.$http.getValidatorList().then(res => {
-      console.log('Validator list fetched:', res);
       this.validators = res;
     });
 
@@ -260,7 +258,7 @@ export default {
           // Force table refresh once validators are loaded
           this.$forceUpdate();
         }).catch(error => {
-          console.warn("⚠️ Failed to load validators:", error);
+          // Silently handle validator loading error
         });
       }
 
@@ -345,18 +343,13 @@ export default {
             );
           }
         } else {
-          console.error('❌ Invalid pool data or bonded_and_supply item not found:', {
-            bondedAndSupply,
-            poolLength: pool.length,
-            pool0Exists: !!pool[0],
-            pool1Exists: !!pool[1]
-          });
+          // Handle invalid pool data silently
         }
       }).catch(poolError => {
-        console.error('❌ Error fetching pool data:', poolError);
+        // Handle pool error silently
       });
     }).catch(stakingError => {
-      console.error('❌ Error fetching staking parameters:', stakingError);
+      // Handle staking error silently
     });
     this.$http.getSlashingParameters().then(res => {
       this.slashing = this.normalize(res, 'Slashing Parameters');

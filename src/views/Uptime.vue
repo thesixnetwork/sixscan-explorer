@@ -48,20 +48,20 @@
             class="d-flex justify-content-between align-self-stretch flex-wrap"
           >
             <div v-for="(b, i) in blocks" :key="i" style="width:1.5%;">
-              <router-link :to="`./blocks/${b.height}`">
-                <div
-                  v-b-tooltip.hover.v-second
-                  :title="b.height"
-                  :class="
-                    b.sigs && b.sigs[x.address]
-                      ? b.sigs[x.address]
-                      : 'bg-light-success'
-                  "
-                  class="m-auto"
-                >
-                  &nbsp;
-                </div>
-              </router-link>
+              <div
+                v-b-tooltip.hover
+                :title="`Block ${b.height}`"
+                :class="
+                  b.sigs && b.sigs[x.address]
+                    ? b.sigs[x.address]
+                    : 'bg-danger'
+                "
+                class="m-auto block-indicator"
+                style="height: 20px; min-height: 20px; border-radius: 2px; cursor: pointer;"
+                @click="navigateToBlock(b.height)"
+              >
+                <span style="opacity: 0;">&nbsp;</span>
+              </div>
             </div>
           </div>
         </b-col>
@@ -146,10 +146,8 @@ export default {
 
     if (cached) {
       this.validators = cached;
-      console.log('Using cached validators:', cached);
     }
     this.$http.getValidatorList().then(res => {
-      console.log('Validator list fetched:', res);
       this.validators = res;
     });
     this.initBlocks();
@@ -163,6 +161,15 @@ export default {
     base64ToHex,
     pinValidator() {
       localStorage.setItem('pinned', this.pinned);
+    },
+    navigateToBlock(height) {
+      const path = `./blocks/${height}`;
+      try {
+        this.$router.push(path);
+      } catch (error) {
+        // Fallback navigation
+        window.location.href = path;
+      }
     },
     initBlocks() {
       this.$http.getLatestBlock().then(d => {
@@ -246,7 +253,7 @@ export default {
           }
         });
         const block = this.blocks.find(
-          b => b[1] === res.block.last_commit.height
+          b => b.height === res.block.last_commit.height
         );
         if (typeof block === 'undefined') {
           // mei
@@ -272,5 +279,45 @@ export default {
     background-color: $primary;
     color: #fff;
   }
+}
+
+.block-indicator {
+  display: block;
+  width: 100%;
+  height: 20px;
+  min-height: 20px;
+  border-radius: 2px;
+  margin: 1px;
+  border: none;
+  text-decoration: none;
+  font-size: 0;
+  line-height: 0;
+}
+
+.block-indicator:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+/* Ensure background colors are applied properly */
+.bg-success {
+  background-color: #28a745 !important;
+  color: transparent !important;
+}
+
+.bg-danger {
+  background-color: #dc3545 !important;
+  color: transparent !important;
+}
+
+.bg-light-success {
+  background-color: #d4edda !important;
+  color: transparent !important;
+}
+
+/* Hide any text content inside blocks */
+.block-indicator span {
+  display: none;
 }
 </style>

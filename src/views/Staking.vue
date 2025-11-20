@@ -346,17 +346,15 @@ export default {
       } else {
         // Fallback: calculate total from validators if available
         this.stakingPool = 1; // Prevent division by zero
-        console.warn("⚠️ Could not find bonded tokens in staking pool, using fallback");
       }
     }).catch(error => {
-      console.error("❌ Error loading staking pool:", error);
       this.stakingPool = 1; // Prevent division by zero
     });
     // set
     this.$http.getStakingParameters().then(res => {
       this.stakingParameters = res;
     }).catch(error => {
-      console.error("❌ Error loading staking parameters:", error);
+      // Handle error silently
     });
     this.initial();
   },
@@ -398,7 +396,6 @@ export default {
         this.validators = temp;
         this.getPreviousPower(this.validators.length);
       }).catch(error => {
-        console.error("❌ Error loading validator list:", error);
         const fallbackUrl = `${this.$http.config.api}/cosmos/staking/v1beta1/validators`;
         fetch(fallbackUrl)
           .then(response => response.json())
@@ -438,7 +435,6 @@ export default {
             }
           })
           .catch(fallbackError => {
-            console.error("❌ Fallback also failed:", fallbackError);
           });
       });
     },
@@ -477,7 +473,6 @@ export default {
               this.debugValidatorKeyMatching();
             }
           }).catch(prevError => {
-            console.error("❌ Error getting previous validator set:", prevError);
             // Set all changes to 0 as fallback
             this.validators.forEach(v => {
               v.changes = 0;
@@ -485,7 +480,6 @@ export default {
           });
         }
       }).catch(error => {
-        console.error("❌ Error getting latest validator set:", error);
         // Set all changes to 0 as fallback
         this.validators.forEach(v => {
           v.changes = 0;

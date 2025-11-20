@@ -138,7 +138,6 @@ export default {
       try {
         this.$router.push(path);
       } catch (error) {
-        console.error('Navigation error:', error);
         // Fallback navigation
         window.location.href = path;
       }

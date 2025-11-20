@@ -222,7 +222,6 @@ export default {
             this.transactions = res || { txs: [] };
             this.isBusy = false;
           }).catch(err => {
-            console.error('Error fetching transactions:', err);
             this.transactions = { txs: [] };
             this.isBusy = false;
           });
@@ -604,14 +603,12 @@ export default {
           this.transactions = res || { txs: [] };
           this.isBusy = false;
         }).catch(err => {
-          console.error('Error fetching transactions:', err);
           this.transactions = { txs: [] };
           this.isBusy = false;
         });
         this.$http.getStakingParameters().then(res => {
           this.stakingParameters = res;
         }).catch(err => {
-          console.error('Error fetching staking parameters:', err);
           this.stakingParameters = {};
         });
       })
@@ -630,7 +627,6 @@ export default {
         this.transactions = res || { txs: [] };
         this.isBusy = false;
       }).catch(err => {
-        console.error('Error refreshing transactions:', err);
         this.transactions = { txs: [] };
         this.isBusy = false;
       });
@@ -649,7 +645,6 @@ export default {
           }
         });
       }).catch(err => {
-        console.error('Error fetching account balance:', err);
         this.assets = [];
       });
 
@@ -674,7 +669,6 @@ export default {
         }
         this.options = array;
       }).catch(err => {
-        console.error('Error fetching token balance:', err);
         this.options = [];
       });
 
@@ -701,21 +695,18 @@ export default {
           this.reward = { rewards: [], total: [] };
         }
       }).catch(err => {
-        console.error('Error fetching staking rewards:', err);
         this.reward = { rewards: [], total: [] };
       });
 
       this.$http.getStakingDelegations(this.address).then(res => {
         this.delegations = res.delegation_responses || res || [];
       }).catch(err => {
-        console.error('Error fetching delegations:', err);
         this.delegations = [];
       });
 
       this.$http.getStakingUnbonding(this.address).then(res => {
         this.unbonding = res.unbonding_responses || res || [];
       }).catch(err => {
-        console.error('Error fetching unbonding:', err);
         this.unbonding = [];
       });
     },
@@ -731,7 +722,6 @@ export default {
         this.transactions = res || { txs: [] };
         this.isBusy = false;
       }).catch(err => {
-        console.error('Error fetching transactions:', err);
         this.transactions = { txs: [] };
         this.isBusy = false;
       });
@@ -796,7 +786,6 @@ export default {
     },
     csvExport(arrData) {
       if (!arrData || !Array.isArray(arrData) || arrData.length === 0) {
-        console.warn('No data available for export');
         return;
       }
       

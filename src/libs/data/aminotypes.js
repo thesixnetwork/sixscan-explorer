@@ -409,7 +409,6 @@ class AminoTypes {
         this.register = Object.assign(Object.assign({}, filteredDefaultTypes), additions);
     }
     toAmino({ typeUrl, value }) {
-        console.log('typeurl:', typeUrl, value)
         const converter = this.register[typeUrl];
         if (!converter) {
             throw new Error("Type URL does not exist in the Amino message type register. " +

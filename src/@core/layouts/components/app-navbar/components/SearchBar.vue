@@ -170,7 +170,6 @@ export default {
   },
   methods: {
     doSomething(v) {
-      // console.log('log v', v);
     },
     optionSearch: async function(e) {
       this.options = [

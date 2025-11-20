@@ -728,7 +728,6 @@ export function base64ToHex(base64String) {
     }
     return hex.toUpperCase();
   } catch (error) {
-    console.warn('Error converting base64 to hex:', base64String, error);
     return base64String; // Return original if conversion fails
   }
 }
@@ -761,7 +760,6 @@ export function base64ToBech32Address(base64String, chainId = '') {
     // Encode as Bech32
     return Bech32.encode(prefix, bytes);
   } catch (error) {
-    console.warn('Error converting base64 to Bech32:', base64String, error);
     // Fallback to hex format
     return base64ToHex(base64String);
   }
@@ -793,7 +791,6 @@ export function consensusPubkeyToBech32(consensusPubkey, chainId = '') {
       
       return Bech32.encode(prefix, bytes);
     } catch (error) {
-      console.warn('Error converting consensus pubkey to Bech32:', error);
     }
   }
   return null;
@@ -806,7 +803,6 @@ export function getConsensusAddressFromValidator(validator, chainId = '') {
       // Convert consensus pubkey to Bech32 consensus address
       return consensusPubkeyToBech32(validator.consensus_pubkey, chainId);
     } catch (error) {
-      console.warn('Error converting validator consensus pubkey:', error);
     }
   }
   return null;
@@ -840,7 +836,6 @@ export function formatValidatorAddress(bech32Address, chainName = '', validators
     // Fallback to abbreviated Bech32 address
     return bech32Address.length > 12 ? `${bech32Address.substring(0, 12)}...${bech32Address.substring(bech32Address.length - 8)}` : bech32Address;
   } catch (error) {
-    console.warn('Error formatting validator address:', bech32Address, error);
     // Return abbreviated address as fallback
     return bech32Address.length > 12 ? `${bech32Address.substring(0, 12)}...${bech32Address.substring(bech32Address.length - 8)}` : bech32Address;
   }
