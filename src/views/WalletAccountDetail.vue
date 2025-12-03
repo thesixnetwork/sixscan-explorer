@@ -447,12 +447,14 @@ export default {
       return [];
     },
     assetTable() {
+
       let total = [];
       let sum = 0;
       let sumCurrency = 0;
       
       // Ensure assets is an array
       const assetsArray = Array.isArray(this.assets) ? this.assets : [];
+  
       
       total = total.concat(
         assetsArray.map(x => {
@@ -461,13 +463,16 @@ export default {
           xh.color = 'success';
           xh.icon = 'CreditCardIcon';
           xh.currency = this.formatCurrency(xh.amount, xh.denom);
+       
           sumCurrency += xh.currency;
           sum += Number(xh.amount);
           return xh;
         })
       );
 
+
       let stakingDenom = '';
+
       if (this.delegations && Array.isArray(this.delegations) && this.delegations.length > 0) {
         let temp = 0;
         this.delegations.forEach(x => {
@@ -477,6 +482,7 @@ export default {
           sum += Number(xh.amount);
           stakingDenom = xh.denom;
         });
+
         total.push({
           type: 'Delegation',
           color: 'primary',
@@ -487,6 +493,7 @@ export default {
         });
       }
 
+
       if (this.reward && this.reward.total && Array.isArray(this.reward.total)) {
         total = total.concat(
           this.reward.total.filter(x => {
@@ -495,10 +502,12 @@ export default {
             xh.color = 'warning';
             xh.icon = 'TrendingUpIcon';
             xh.currency = this.formatCurrency(xh.amount, xh.denom);
+
             // sumCurrency += xh.currency;
             if (xh.denom === 'usix') {
               sumCurrency += xh.currency;
               sum += Number(xh.amount);
+
             }
             // sum += Number(xh.amount);
             return xh.denom === 'usix';
@@ -506,6 +515,7 @@ export default {
         );
       }
       
+
       if (this.unbonding && Array.isArray(this.unbonding)) {
         let tmp1 = 0;
         this.unbonding.forEach(x => {
@@ -518,6 +528,7 @@ export default {
         if (this.stakingParameters)
           stakingDenom = this.stakingParameters.bond_denom;
         const unbonding = this.formatCurrency(tmp1, stakingDenom);
+
         sumCurrency += unbonding;
         sum += tmp1;
         total.push({
@@ -531,18 +542,23 @@ export default {
         });
       }
 
+      
       total = total.map(x => {
         const xh = x;
         // Handle division by zero case
         xh.percent = sum === 0 ? 0 : percent(Number(x.amount) / sum);
         xh.amount = xh.denom === "asix" ? Number(fromExponential(Number(x.amount) / 10 ** 18)).toFixed(2) : xh.amount;
         xh.denom = xh.denom === "asix" ? "six (evm)" : xh.denom;
+
         return xh;
       });
-      return {
+      
+      const result = {
         items: total,
         currency: parseFloat(sumCurrency.toFixed(2))
       };
+
+      return result;
     },
     deleTable() {
       const re = [];
@@ -635,7 +651,15 @@ export default {
   methods: {
     initial() {
       this.$http.getBankAccountBalance(this.address).then(bal => {
-        this.assets = Array.isArray(bal) ? bal : [];
+
+        
+        // Handle new API structure with balances array
+        const balances = bal && bal.balances ? bal.balances : 
+                        (Array.isArray(bal) ? bal : []);
+        
+
+        this.assets = Array.isArray(balances) ? balances : [];
+        
         this.assets.forEach(x => {
           const symbol = formatTokenDenom(x.denom);
           if (!this.quotes[symbol] && symbol.indexOf('/') === -1) {
@@ -645,18 +669,30 @@ export default {
           }
         });
       }).catch(err => {
+        console.error('getBankAccountBalance error:', err);
         this.assets = [];
       });
 
       this.$http.getBankAccountBalanceToken(this.address).then(bal => {
+      
         let array = [];
-        if (bal && bal.result && Array.isArray(bal.result)) {
-          const filterData = bal.result.filter(x => {
+        
+        // Handle new API structure with balances array
+        const balances = bal && bal.balances ? bal.balances : 
+                        (bal && bal.result ? bal.result : 
+                        (Array.isArray(bal) ? bal : []));
+        
+    
+        if (Array.isArray(balances)) {
+          const filterData = balances.filter(x => {
             // return x.denom === 'usix';
             return x.denom;
           });
+   
+          
           if (filterData.length > 0) {
-            bal.result.map((x, i) => {
+            balances.map((x, i) => {
+         
               array.push({
                 name: formatTokenDenom(x.denom),
                 id: x.denom !== "asix" ? this.formatAmount(x.amount) + ' ' + formatTokenDenom(x.denom)
@@ -667,8 +703,10 @@ export default {
             });
           }
         }
+ 
         this.options = array;
       }).catch(err => {
+        console.error('getBankAccountBalanceToken error:', err);
         this.options = [];
       });
 
@@ -709,6 +747,8 @@ export default {
       }).catch(err => {
         this.unbonding = [];
       });
+
+    
     },
     validateSelection(selection) {
       this.selected = selection;

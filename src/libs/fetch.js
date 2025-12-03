@@ -404,6 +404,12 @@ export default class ChainFetch {
     });
   }
 
+  async getBankAccountBalanceByDenom(address, denom) {
+    return this.get(`/cosmos/bank/v1beta1/balances/${address}/${denom}`).then(data => {
+      return data;
+    });
+  }
+
   // async getMetaData() {
   //   return this.getSchema('/').then(data => {
   //     return data;
