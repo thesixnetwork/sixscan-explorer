@@ -669,7 +669,6 @@ export default {
           }
         });
       }).catch(err => {
-        console.error('getBankAccountBalance error:', err);
         this.assets = [];
       });
 
@@ -706,7 +705,6 @@ export default {
  
         this.options = array;
       }).catch(err => {
-        console.error('getBankAccountBalanceToken error:', err);
         this.options = [];
       });
 
